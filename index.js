@@ -1,10 +1,13 @@
+// Run as root script
 if(require.main === module) { 
-	const fs = require("fs");
-	
+	var fs = require("fs");
 	var args = process.argv.slice(0);
 	var node = args.shift();
 	var script = args.shift();
+	
+	// Given some file names
 	if(args.length > 0 && args[0] != "--") {
+		// Recursively process all files in sequence
 		function check(files, callback, prevFiles) {
 			if(files.length == 0) {
 				callback(null, prevFiles);
@@ -31,9 +34,13 @@ if(require.main === module) {
 			process.stderr.write(`Converted ${count} files\n`);
 			process.exit(err ? 1 : 0);
 		});
-	} else if(args[0] == "--") {
+	} 
+	// Reading std in
+	else if(args[0] == "--") {
 		require("./stdin")();
-	} else {
+	} 
+	// Print help
+	else {
 		console.log("XLSX to Lap Times converter")
 		console.log("Usage:")
 		console.log("");
@@ -48,6 +55,7 @@ if(require.main === module) {
 		process.exit(0);
 	}
 }
+// Included as module
 else {
 	module.exports = {
 		handle: require("./convert").handle,

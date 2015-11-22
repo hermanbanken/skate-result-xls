@@ -1,0 +1,22 @@
+{
+  "name": "skate-result-xls",
+  "version": "1.0.0",
+  "description": "Parses Skate result XLSX files and retrieves the lap times",
+  "author": "Herman Banken",
+  "main": "index.js",
+  "dependencies": {
+    "express": "^4.13.3",
+    "eyes": "^0.1.8",
+    "node-zip": "^1.1.1",
+    "q": "^1.4.1",
+    "request": "^2.67.0",
+    "xlsx": "^0.8.0",
+    "xml2js": "^0.4.15"
+  },
+  "devDependencies": {},
+  "scripts": {
+		"start": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "license": "MIT"
+}

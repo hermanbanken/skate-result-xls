@@ -37,8 +37,18 @@ function toSkateTimes(indexed, cell, i) {
 
 	var isInner = cell._id[0].charCodeAt(0) < 'I'.charCodeAt(0);
 
+	var category = (isInner ? cell.d(1, -3) : cell.d(-3, -2))(indexed);
+	var pair =     (isInner ? cell.d(-3,-3) : cell.d(-9, -3))(indexed);
+	category = category && category.value;
+	pair = pair && parseInt(pair.value);
+
+	var i = 1, below, right1, right2, obj = { 
+		name: cell.value, category,
+		pair, lane: isInner ? "I" : "O", 
+		times: []
+	};
+	
 	// Look below the name cell
-	var i = 1, below, right1, right2, obj = { name: cell.value, inner: isInner, times: [] };
 	do {
 		if(i > 1) {
 			obj.times.push([ below.value, right1, right2 ]);
@@ -147,11 +157,12 @@ function handleZip(zip){
 	
 		// Link original sheet names
 		var worksheetPromises = q.all([workbookPromise, q.all(timesPromises)])
-			.spread((workbooks, sheets) => {
-				sheets.forEach(s => s.name = workbooks.find(w => w.filename).name);
-				sheets.forEach(s => delete s.filename);
-				return sheets;
-			});
+			.spread((workbooks, sheets) =>
+				sheets.map(s => ({ 
+					name: workbooks.find(w => s.filename == w.filename).name, 
+					results: s.results 
+				}))
+			);
 		
 		// Filter sheets without lap times
 		return worksheetPromises

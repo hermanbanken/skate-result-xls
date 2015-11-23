@@ -100,6 +100,8 @@ app.config(function($locationProvider, $stateProvider, $urlRouterProvider, $reso
 	$resourceProvider.defaults.stripTrailingSlashes = false;
 });
 	
+//$('<div class="progress"><div class="progress-bar progress-bar-striped active" role="progressbar" style="width: 100%"></div></div>')
+	
 app.controller('CompetitionListCtrl', ["$scope", "$rootScope", "$http", "competitions", function ($scope, $rootScope, $http, competitions) {
 	
 	// Group by availability state
@@ -110,13 +112,10 @@ app.controller('CompetitionListCtrl', ["$scope", "$rootScope", "$http", "competi
 	}), function(list, key){
 		return { state: key, value: list };
 	});
-	$scope.states = ["Nog niet bekend", "Voorlopig resultaat", "Resultaat beschikbaar"];
-	$rootScope.venues = _.uniq(_.pluck(c, "venue"), "code").filter(function(a){return a;});
-}])
+	
+}]);
 
-app.controller('CompetitionDetailCtrl', function ($scope, $routeParams, competition, result) {
-	console.log("Competition Detail");
-	$scope.competition = competition;
+app.controller('CompetitionDetailCtrl', function ($scope, $stateParams, result, competition) {
 	$scope.result = result.map(function(part) {
 		// Find distinct list of passings distances available in this competition part
 		part.passings = _.chain(part.results).pluck("times").map(function(ts) { 
@@ -124,4 +123,43 @@ app.controller('CompetitionDetailCtrl', function ($scope, $routeParams, competit
 		}).flatten().uniq().value();
 		return part;
 	});
-})
+	
+	// Compute
+	var sums = result.map(function(part, index){
+		// Per user an id and a distance
+		var pilars = part.results.map(function(user){
+			var id = user.name + ":" + user.category;
+			var distance = _.last(user.times)[0].replace('m', "");
+			return { id, distance };
+		});
+		
+		// Most probable distance
+		var distance = _.chain(pilars).countBy("distance").value();
+		var mostHave = _.chain(distance).pairs().max(function(p){ return p[1]; }).value();
+		
+		// Return bucket of [id : index] pairs and probability
+		return {
+			name: part.name, index,
+			buckets: _.chain(pilars).filter(u => u.distance == mostHave[0]).pluck("id").map(function(id){ return { id, index }; }).value(),
+			distance: mostHave[0], certainty: mostHave[1] / part.results.length };
+	});
+
+	// Merge buckets and count how many times each distance combinations exists
+	var buckets = _.chain(sums).pluck("buckets").flatten().groupBy("id").mapObject(function(list){
+		return _.pluck(list, "index");
+	}).countBy(function(ds, user){
+		return ds.join("-");
+	}).mapObject(function(count, id){
+		return { count, id };
+	}).values().value();
+	
+	// Find non-overlapping combinations. Warning: complex combinations are thus never returned
+	var combinations = _.chain(result).map(function(part, index){
+		var combination  = _.chain(buckets)
+			.filter(function(b){ return b.id.split("-").indexOf(index+"") >= 0 })
+			.max(function(b){ return b.count; }).value().id;
+		return combination;
+	}).uniq().value();
+	console.log(competition, combinations);	
+	$scope.competition = competition;
+});

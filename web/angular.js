@@ -1,7 +1,12 @@
 angular.module('skateApp.services', [])
-	.factory('Competition', ['$resource', function($resource) {
-		return $resource('/competitions/:id', null);
-	}]);
+.factory('Competition', ['$resource', function($resource) {
+	return $resource('/api/competitions/:id', null);
+}])
+.factory('CompetitionResult', ['$resource', function($resource) {
+	return $resource('/api/competitions/:id/result', null, {
+		get: { method: "GET", isArray: true }
+	});
+}]);
 
 var app = angular.module('skateApp', [
 	'ngResource',
@@ -9,12 +14,19 @@ var app = angular.module('skateApp', [
 	'ui.router',
 	'angular.filter',
 	'skateApp.services'
-]);
+])
+.run(function ($rootScope, $state, $stateParams) {
+  $rootScope.$on("$stateChangeError", console.log.bind(console));
+	// It's very handy to add references to $state and $stateParams to the $rootScope
+	// so that you can access them from any scope within your applications.
+	$rootScope.$state = $state;
+	$rootScope.$stateParams = $stateParams;
+});
 
 /**
  * Parse date format to millis
  */
- function parseTime(time) {
+function parseTime(time) {
   var _ = time.lastIndexOf(":"),
       d = time.lastIndexOf("."),
       c = time.lastIndexOf(",");
@@ -41,35 +53,57 @@ app.controller('appCtrl', ["$scope", "$rootScope", "$http", function ($scope, $r
 
 }]);
 
-app.config(function($locationProvider, $routeProvider, $resourceProvider) {
+app.config(function($locationProvider, $stateProvider, $urlRouterProvider, $resourceProvider) {
 	// Fancy HTML5 url's (no hashes).
-	// $locationProvider.html5Mode( true );
+	//$locationProvider.html5Mode( true );
 	
 	// Routes
-	$routeProvider.
-		when('/competitions', {
-			templateUrl: 'partials/competitions.html',
-			controller: 'CompetitionListCtrl',
-			resolve: {
-				competitions: function(Competition){
-						return Competition.query().$promise;
-				}
+	var root = $stateProvider.state('competitions', {
+		abstract: true,
+		url: "/competitions",
+		template: "<ui-view />",
+		resolve: {
+			competitions: function(Competition){
+				return Competition.query().$promise;
 			}
-		}).
-		when('/competitions/:id', {
-			templateUrl: 'partials/competition.html',
-			controller: 'CompetitionDetailCtrl'
-		}).
-		otherwise({
-			redirectTo: '/competitions'
-		});
-		
+		},
+		onEnter: function($rootScope, competitions){
+			// Populate filter lists
+			$rootScope.states = ["Nog niet bekend", "Voorlopig resultaat", "Resultaat beschikbaar"];
+			$rootScope.venues = _.uniq(_.pluck(competitions, "venue"), "code").filter(function(a){return a;});
+		}
+	})
+	
+	root.state('competitions.list', {
+		url: "",
+		templateUrl: 'partials/competitions.html',
+		controller: 'CompetitionListCtrl',
+	})
+	
+	root.state('competitions.detail', {
+		url: '/:id',
+		templateUrl: 'partials/competition.html',
+		controller: 'CompetitionDetailCtrl',
+		resolve: {
+			competition: function(Competition, $stateParams){
+				return Competition.get({ id: $stateParams.id }).$promise;
+			},
+			result: function(CompetitionResult, $stateParams){
+				return CompetitionResult.get({ id: $stateParams.id }).$promise;
+			}
+		}
+	});
+
+	$urlRouterProvider.otherwise("/competitions");
+
 	// Don't strip trailing slashes from calculated URLs
 	$resourceProvider.defaults.stripTrailingSlashes = false;
 });
 	
 app.controller('CompetitionListCtrl', ["$scope", "$rootScope", "$http", "competitions", function ($scope, $rootScope, $http, competitions) {
-	var c = $scope.competitions = _.map(_.groupBy(competitions, function(c) {
+	
+	// Group by availability state
+	$scope.competitions = _.map(_.groupBy(competitions, function(c) {
 		if(new Date(c.ends) > new Date())
 			return 0;
 		return c.resultsStatus;
@@ -80,6 +114,14 @@ app.controller('CompetitionListCtrl', ["$scope", "$rootScope", "$http", "competi
 	$rootScope.venues = _.uniq(_.pluck(c, "venue"), "code").filter(function(a){return a;});
 }])
 
-app.controller('CompetitionDetailCtrl', ["$scope", "$routeParams", function ($scope, $routeParams) {
+app.controller('CompetitionDetailCtrl', function ($scope, $routeParams, competition, result) {
 	console.log("Competition Detail");
-}])
+	$scope.competition = competition;
+	$scope.result = result.map(function(part) {
+		// Find distinct list of passings distances available in this competition part
+		part.passings = _.chain(part.results).pluck("times").map(function(ts) { 
+			return ts.map(function(t) { return t[0]; });
+		}).flatten().uniq().value();
+		return part;
+	});
+})

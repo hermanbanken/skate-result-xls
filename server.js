@@ -8,18 +8,22 @@ var fs = require('fs');
 var q = require('q');
 var crypto = require('crypto');
 
-app.get('/competitions', function (req, res) {
-	res.type('json');
-	q.nfcall(cache, "competitions", { postfix: '.json' }, function(cb) { 
-		https.get("https://inschrijven.schaatsen.nl/api/competitions", function(response) {
-			var body = '';
-			response.on('data', function(d) { body += d; });
-			response.on('end', function() {
-				cb(null, new Buffer(body, 'utf-8'));
-			});
+var competitionPromise = () => q.nfcall(cache, "competitions", { postfix: '.json' }, function(cb) { 
+	https.get("https://inschrijven.schaatsen.nl/api/competitions", function(response) {
+		var body = '';
+		response.on('data', function(d) { body += d; });
+		response.on('end', function() {
+			cb(null, new Buffer(body, 'utf-8'));
 		});
-	}).then(body => {
-		var list = JSON.parse(body);
+	});
+}).then(body => {
+	var list = JSON.parse(body);
+	return list;
+});
+
+app.get('/api/competitions', function (req, res) {
+	res.type('json');
+	competitionPromise().then(list => {
 		list = list.map(simplifyCompetition);
 		res.json(list);
 	}).fail(e => {
@@ -27,8 +31,18 @@ app.get('/competitions', function (req, res) {
 	});
 });
 
+app.get('/api/competitions/:id', function (req, res) {
+	var id = req.params.id;
+	res.type('json');
+	competitionPromise().then(list => {
+		res.json(list.filter(l => l.id == id)[0]);
+	}).fail(e => {
+		res.send("Failed: "+e);
+	});
+});
+
 var excelPattern = "http://emandovantage.com/api/competitions/:id/reports/Results/5";
-app.get('/competitions/:id/results', function (req, res) {
+app.get('/api/competitions/:id/result', function (req, res) {
 	var id = req.params.id;
 	q.nfcall(cache, "results"+id, { postfix: '.json' }, function(callback) {
 		q

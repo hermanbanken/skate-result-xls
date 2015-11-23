@@ -1,0 +1,25 @@
+<div class="container-fluid body-content">
+	<div class="row">
+		<div class="col-sm-8">
+			<h3>{{ competition.name }} <a href="/api/competitions/{{competition.id}}/result" class="small">[api]</a></h3>
+
+			<table class='group table table-condensed table-hover table-striped' ng-repeat="part in result">
+				<tr>
+					<th colspan=4>{{ part.name }}</th>
+					<td ng-repeat="distance in part.passings">{{distance}}</td>
+				</tr>
+				<tr ng-repeat="user in part.results">
+					<td>{{user.pair}}</td>
+					<td>{{user.lane}}</td>
+					<td>{{user.name}}</td>
+					<td>{{user.category}}</td>
+					<td ng-repeat="passing in user.times">{{ passing[1] }} ({{ passing[2] }})</td>
+				</tr>
+			</table>
+		</div>
+		<div class="col-sm-4">
+			<h3>Klassement {{ competition.name }} <a href="/api/competitions/{{competition.id}}/result" class="small">[api]</a></h3>
+	
+		</div>
+	</div>
+</div>

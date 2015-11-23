@@ -21,7 +21,7 @@
 					<span class="icon-bar"></span>
 					<span class="icon-bar"></span>
 				</button>
-				<a href="/" ui-sref="/competitions" class="navbar-brand">SCHAATSEN.NL</a>
+				<a href="/" ui-sref="competitions.list" class="navbar-brand">SCHAATSEN.NL</a>
 			</div>
 			<div class="navbar-collapse collapse">
 				<div class="form-inline navbar-form navbar-right">
@@ -45,13 +45,13 @@
 					</div>
 				</div>
 				<ul class="nav navbar-nav">
-					<li><a href="/" ui-sref="/competitions">WEDSTRIJDEN</a></li>
+					<li><a href="/" ui-sref="competitions.list">WEDSTRIJDEN</a></li>
 				</ul>
 			</div>
 		</div>
 	</div>
 	
-	<div ng-view>
+	<div ui-view>
 	<div class="container-fluid body-content">
 		<div class="row">
 			<div class="col-sm-12" id="master"></div>

@@ -26,16 +26,24 @@ var app = angular.module('skateApp', [
 /**
  * Parse date format to millis
  */
-function parseTime(time) {
-  var _ = time.lastIndexOf(":"),
-      d = time.lastIndexOf("."),
-      c = time.lastIndexOf(",");
-  var subseconds = time.length - c - 1;
-  var t = parseInt(time.substr(c+1)) / Math.pow(10, subseconds) * 1000;
-  var s = parseInt(time.substr(d+1, c - d - 1)) * 1000;
-  var m = d >= 0 ? parseInt(time.substr(_+1, d - _ - 1)) * 1000 * 60 : 0;
-  var h = _ >= 0 ? parseInt(time.substr(0, _)) * 1000 * 3600 : 0;
-  return t + s + m + h;
+function parseTime(time, isEnglish) {
+	var separators = [
+		isEnglish ? ["?", ":", "."] : [":", ".", ","], // english == format without hours?
+		isEnglish ? [":", ".", ","] : [":", ",", "."]
+	];
+	for(var i = 0; i < separators.length; i++) {
+		var _ = time.lastIndexOf(separators[i][0]),
+				d = time.lastIndexOf(separators[i][1]),
+				c = time.lastIndexOf(separators[i][2]);
+		var subseconds = time.length - c - 1;
+		var t = parseInt(time.substr(c+1)) / Math.pow(10, subseconds) * 1000;
+		var s = parseInt(time.substr(d+1, c - d - 1)) * 1000;
+		var m = d >= 0 ? parseInt(time.substr(_+1, d - _ - 1)) * 1000 * 60 : 0;
+		var h = _ >= 0 ? parseInt(time.substr(0, _)) * 1000 * 3600 : 0;
+		if(!isNaN(t+s+m+h))
+			return t+s+m+h;
+	}
+	console.log(time, "expecting h:mm.ss,ddd or h:mm,ss.ddd", t, s, m, h);
 }
 
 app.controller('appCtrl', ["$scope", "$rootScope", "$http", function ($scope, $rootScope, $http) {
@@ -129,8 +137,10 @@ app.controller('CompetitionDetailCtrl', function ($scope, $stateParams, result, 
 		// Per user an id and a distance
 		var pilars = part.results.map(function(user){
 			var id = user.name + ":" + user.category;
-			var distance = _.last(user.times)[0].replace('m', "");
-			return { id, distance };
+			var last = _.last(user.times);
+			var distance = last[0].replace('m', "");
+			var time = last[1];
+			return { id, distance, time };
 		});
 		
 		// Most probable distance
@@ -140,6 +150,8 @@ app.controller('CompetitionDetailCtrl', function ($scope, $stateParams, result, 
 		// Return bucket of [id : index] pairs and probability
 		return {
 			name: part.name, index,
+			original: part,
+			simple: pilars,
 			buckets: _.chain(pilars).filter(u => u.distance == mostHave[0]).pluck("id").map(function(id){ return { id, index }; }).value(),
 			distance: mostHave[0], certainty: mostHave[1] / part.results.length };
 	});
@@ -160,6 +172,38 @@ app.controller('CompetitionDetailCtrl', function ($scope, $stateParams, result, 
 			.max(function(b){ return b.count; }).value().id;
 		return combination;
 	}).uniq().value();
-	console.log(competition, combinations);	
+	// console.log(competition, combinations);
+
+	// Calculate points per user
+	var ranks = combinations.map(c => {
+		var distances = c.split("-").map(d => parseInt(d));
+		var rank = distances.map(i => sums[i]).map((list,listIndex) => {
+			var d = parseInt(list.distance);
+			return list.simple.map(user => ({
+				id: user.id,
+				col: { index: listIndex, distance: list.distance, time: user.time, ok: user.distance == list.distance },
+				points:  (parseTime(user.time, true) / d * 500), 
+				ok: user.distance == list.distance
+			}))
+		});
+		rank.distances = distances.map(i => sums[i]).map((list,i) => [i,parseInt(list.distance)]).sort();
+		return rank;
+	}).map(rank => {
+		var output = _.chain(rank).flatten().groupBy("id").pairs().map(pair => {
+			var list = pair[1];
+			return {
+				name: pair[0].split(":")[0],
+				category: pair[0].split(":")[1],
+				cols: _.chain(list).pluck("col").indexBy("index").value(),
+				points: _.chain(list).pluck("points").reduce((s,n) => s+n, 0).value(),
+				distances: list.filter(u => u.ok).length
+			}
+		}).value();
+		output.distances = rank.distances;
+		return output;
+	})
+	console.log(ranks)
+
+	$scope.ranks = ranks;	
 	$scope.competition = competition;
 });

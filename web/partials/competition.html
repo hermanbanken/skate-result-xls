@@ -1,6 +1,6 @@
 <div class="container-fluid body-content">
 	<div class="row">
-		<div class="col-sm-8">
+		<div class="col-sm-7">
 			<h3>{{ competition.name }} <a href="/api/competitions/{{competition.id}}/result" class="small">[api]</a></h3>
 
 			<table class='group table table-condensed table-hover table-striped' ng-repeat="part in result">
@@ -17,9 +17,23 @@
 				</tr>
 			</table>
 		</div>
-		<div class="col-sm-4">
-			<h3>Klassement {{ competition.name }} <a href="/api/competitions/{{competition.id}}/result" class="small">[api]</a></h3>
-	
+		<div class="col-sm-5">
+			<h3>Klassement</h3>
+			<table class='rank table table-condensed table-hover table-striped' ng-repeat="rank in ranks">
+				<tr>
+					<th>#</th>
+					<th colspan=2>Deelnemer</th>
+					<th ng-repeat="d in rank.distances">{{ d[1] }}</th>
+					<th>Totaal</th>					
+				</tr>
+				<tr ng-repeat="(i, row) in rank | orderBy:['-distances','points']">
+					<td>{{ rank.distances.length == row.distances ? i+1 : "" }}</td>
+					<td>{{ row.name }}</td>
+					<td>{{ row.category }}</td>
+					<th ng-repeat="d in rank.distances">{{ row.cols[d[0]].ok ? row.cols[d[0]].time : '-' }}</th>
+					<td>{{ (row.points / 1000).toFixed(3) }}</td>
+				</tr>
+			</table>
 		</div>
 	</div>
 </div>

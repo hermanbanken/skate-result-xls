@@ -30,7 +30,8 @@ function triggerCompetitionFilter(){
 }
 	
 	
-var body = $('<div class="container body-content">').appendTo($("body"));
+var master = $('#master');
+var detail = $('#master');
 window.xhr = $.getJSON("/competitions", function (competitions) {
 	window.competitions = competitions;
 	triggerCompetitionFilter();
@@ -40,6 +41,7 @@ window.xhr = $.getJSON("/competitions", function (competitions) {
 });
 
 var states = ["Nog niet bekend", "Voorlopig resultaat", "Resultaat beschikbaar"];
+var dateOptions = { weekday: 'short' , year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minutes: 'numeric' }; 
 
 $(window).on('data-change', function(){
 	var comps = competitions.slice(0);
@@ -55,29 +57,60 @@ $(window).on('data-change', function(){
 		comps = comps.filter(function(c){ return c.venue && c.venue.code == filter.venue });		
 	}
 	
-	// Get only past matches
-	// c.map(c => new Date(c.starts)).filter(d => d < new Date());
-
-	body.html("");
+	master.html("");
 	var grouped = _.groupBy(comps, function(c) {
 		if(new Date(c.ends) > new Date())
 			return 0;
 		return c.resultsStatus;
 	});
 	Object.keys(grouped).sort().reverse().forEach(function (status) {
-		$("<h1></h1>").text(states[status]).appendTo(body);
+		$("<h1></h1>").text(states[status]).appendTo(master);
 		grouped[status].sort(function(a,b){ return a.starts.localeCompare(b.starts) });
-		var lis = grouped[status].map(function (c) {
-			// console.log(c.id, c.name);
-			var a = $("<a></a>").attr("href", "https://inschrijven.schaatsen.nl/#/wedstrijd/"+c.id+"/informatie").text(c.name);
-			var li = $("<li></li>");
-			a.appendTo(li);
-			li.append(" - ");
-			$("<a></a>").attr("href", "/competitions/"+c.id+"/results").text("results").appendTo(li);
-			li.append(" - ");
-			$("<a></a>").attr("href", "http://emandovantage.com/api/competitions/"+c.id+"/reports/Results/5").text("original").appendTo(li);
-			return li;
+		var trs = grouped[status].map(function (c) {
+			var tds = [
+				$("<a></a>").attr("href", "/competitions/"+c.id+"/results").text(c.name).appendTo($("<td></td>")).on("click", showDetail),
+				moment(new Date(c.starts)).format('dd DD-MM-YYYY HH:mm'),
+				$("<a></a>").attr("href", "https://inschrijven.schaatsen.nl/#/wedstrijd/"+c.id+"/informatie").html("<i class='glyphicon glyphicon-info-sign' />").attr("target", "_blank"), 
+				$("<a></a>").attr("href", "http://emandovantage.com/api/competitions/"+c.id+"/reports/Results/Pdf").html("<i class='glyphicon glyphicon-file' />").appendTo($("<td></td>"))
+			].map(function(cell) { return $("<td></td>").append(cell); });
+			return $("<tr></tr>").append(tds);
 		});
-		$("<ul />").append(lis).appendTo(body);
+		$("<table />").addClass("table table-condensed table-hover table-striped").append(trs).appendTo(master);
 	})
 })
+
+function showDetail(evt) {
+	var master = $("#master").removeClass("col-sm-12").addClass("col-sm-6");
+	var detail = $("#detail").removeClass("col-sm-0" ).addClass("col-sm-6");
+	
+	$('<div class="progress"><div class="progress-bar progress-bar-striped active" role="progressbar" style="width: 100%"></div></div>')
+		.appendTo(detail)
+		.css({ position: "absolute", top: 0, left: 0, right: 0, height: "10px" });
+	
+	var name = $(evt.target).closest("tr").find("td:first-child").text();
+	$.getJSON($(evt.target).attr("href")).then(function(data) {
+		detail.html("<h2>"+name+"</h2>");
+		data.forEach(function(part) {
+			var trs = part.results.map(function(result) {
+				var tds = [
+					result.pair,
+					result.lane,
+					result.name,
+					result.category
+				];
+				tds.push.apply(tds, result.times.map(function(triple) {
+					return " " + triple[1] + " (" + triple[2] + ")";
+				}));
+				return $("<tr />").append(tds.map(function(fill){ return $("<td></td>").text(fill) }));
+			});
+			
+			var distances = _.uniq(_.flatten(_.pluck(part.results, "times").map(function(ts) { return ts.map(function(t) { return t[0]; }); })));
+			console.log(distances);
+			trs.unshift($("<tr />").append("<th colspan=4>"+part.name+"</th>").append(distances.map(function(d){ return "<td>"+d+"</td>" })));
+				
+			$("<table />").addClass("table table-condensed table-hover table-striped").append(trs).appendTo(detail);
+		})
+//		detail.html("<h2>"+name+"</h2><pre><code></code></pre>").find("code").text(JSON.stringify(data, null, '  '));
+	});
+	return false;
+}

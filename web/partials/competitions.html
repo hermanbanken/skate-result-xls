@@ -1,0 +1,27 @@
+<div class="container-fluid body-content">
+	<div class="row">
+		<div class="col-sm-12" id="master">
+			<h1>Competitions</h1>
+			<div class='group' ng-repeat="group in competitions | orderBy:['-state']">
+				<h3>
+					{{ states[group.state] }}
+					<a href="#" class="small">[api]</a>
+				</h3>
+				<table class="table table-ellipsis table-condensed table-hover table-striped">
+					<tr>
+						<th class='ellipsis'>Wedstrijd</th>
+						<th style='width:12em'>Start</th>
+						<th colspan=2 style='width:4em'></th>
+					</tr>
+					<tr ng-repeat="c in group.value | orderBy:['starts'] | filter:{discipline: filter.discipline, venue: { code: filter.venue }}">
+						<td class='ellipsis'><a href="">{{ c.name }}</a></td>
+						<td>{{ c.starts | date:'EEE dd-MM-yyyy HH:mm' }}</td>
+						<td><a href="https://inschrijven.schaatsen.nl/#/wedstrijd/{{ c.id }}"><i class='glyphicon glyphicon-info-sign' /></a></td>
+						<td><a href="http://emandovantage.com/api/competitions/{{ c.id }}/reports/Results/Pdf"><i class='glyphicon glyphicon-file' /></a></td>
+					</tr>
+				</table>
+			</div>
+		</div>
+		<div class="col-sm-0" id="detail"></div>
+	</div>
+</div>

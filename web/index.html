@@ -1,14 +1,15 @@
 <!DOCTYPE html>
-<html>
+<html ng-app="skateApp" ng-controller="appCtrl">
 
 <head>
+	<base href="/">
 	<title>Result extracter</title>
-	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css" type="text/css" />
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.5/css/bootstrap.css" type="text/css" />
 	<link rel="stylesheet" href="app.css" type="text/css" />
 	<script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.10.6/moment.min.js"></script>
-	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.5/js/bootstrap.min.js"></script>
 </head>
 
 <body>
@@ -20,36 +21,52 @@
 					<span class="icon-bar"></span>
 					<span class="icon-bar"></span>
 				</button>
-				<a href="/" ui-sref="competitions" class="navbar-brand">SCHAATSEN.NL</a>
+				<a href="/" ui-sref="/competitions" class="navbar-brand">SCHAATSEN.NL</a>
 			</div>
 			<div class="navbar-collapse collapse">
 				<div class="form-inline navbar-form navbar-right">
 					<div class="form-group form-group-sm">
-						<select class="form-control" name="discipline">
-							<option value="">(alle disciplines)</option>
+						<select class="form-control" name="discipline" ng-model="filter.discipline" ng-change="doFilter()">
+							<option value="" ng-selected="!filter.discipline">(alle disciplines)</option>
+							<option value="SpeedSkating.Inline">Inline-skaten</option>
+							<option value="SpeedSkating.LongTrack">Langebaan</option>
+							<option value="SpeedSkating.Marathon">Marathon</option>
+							<option value="SpeedSkating.ShortTrack">Shorttrack</option>
 						</select>
 					</div>
 					<div class="form-group form-group-sm">
-						<select class="form-control" name="venue">
-							<option value="">(alle banen)</option>
+						<select class="form-control" name="venue" ng-model="filter.venue" ng-change="doFilter()" ng-disabled="filter.discipline == ''">
+							<option value="" ng-selected="!filter.venue">(alle banen)</option>
+							<option
+								ng-selected="filter.venue == v.code"
+								ng-repeat="v in venues | filter:{discipline: filter.discipline} | orderBy:['address.city','name']" 
+								value="{{v.code}}">{{v.address.city}} ({{v.name}})</option>
 						</select>
 					</div>
 				</div>
 				<ul class="nav navbar-nav">
-					<li><a href="/" ui-sref="competitions">WEDSTRIJDEN</a></li>
+					<li><a href="/" ui-sref="/competitions">WEDSTRIJDEN</a></li>
 				</ul>
 			</div>
 		</div>
 	</div>
 	
+	<div ng-view>
 	<div class="container-fluid body-content">
 		<div class="row">
 			<div class="col-sm-12" id="master"></div>
 			<div class="col-sm-0" id="detail"></div>
 		</div>
 	</div>
+	</div>
 
-	<script src="app.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.4.8/angular.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.4.8/angular-route.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.4.8/angular-resource.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/angular-ui-router/0.2.15/angular-ui-router.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/angular-filter/0.5.8/angular-filter.min.js"></script>
+	<script src="angular.js"></script>
+	<!--<script src="app.js"></script>-->
 	<script>
 		(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
 		(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
@@ -60,6 +77,7 @@
 		ga('send', 'pageview');
 	
 	</script>
+
 </body>
 
 </html>

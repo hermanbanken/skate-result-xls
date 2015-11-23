@@ -1,0 +1,20 @@
+body {
+    padding-top: 70px;
+}
+
+.navbar-inverse {
+    background-color: #f58132;
+}
+.navbar-fixed-top {
+    border: 0;
+}
+.navbar-inverse .navbar-nav>li>a {
+    color: #fff;
+}
+.navbar-inverse .navbar-nav>li>a:hover, .navbar-inverse .navbar-nav>li>a:active {
+    background-color: #f26523;
+}
+.navbar-inverse .navbar-brand {
+    color: #fff;
+    background-color: #f26523;
+}

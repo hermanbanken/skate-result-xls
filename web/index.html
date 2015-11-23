@@ -1,48 +1,47 @@
 <!DOCTYPE html>
 <html>
-	<head>
-		<title>Result extracter</title>
-		<script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
-		<script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
-	</head>
-	<body>
-		<script>
-			var disciplines = {
-				"SpeedSkating.Inline": "Skeeleren",
-				"SpeedSkating.LongTrack": "Langebaan schaatsen",
-				"SpeedSkating.Marathon": "Marathon schaatsen",
-				"SpeedSkating.ShortTrack": "Short Track schaatsen"
-			};
 
-			var body = $("body");
-			window.xhr = $.getJSON("/competitions", function (competitions) {
+<head>
+	<title>Result extracter</title>
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css" type="text/css" />
+	<link rel="stylesheet" href="app.css" type="text/css" />
+	<script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+</head>
 
-				// Get only past matches
-				// c.map(c => new Date(c.starts)).filter(d => d < new Date());
+<body>
+	<div class="navbar navbar-inverse navbar-fixed-top">
+		<div class="container">
+			<div class="navbar-header">
+				<button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+					<span class="icon-bar"></span>
+					<span class="icon-bar"></span>
+					<span class="icon-bar"></span>
+				</button>
+				<a href="/" ui-sref="competitions" class="navbar-brand">SCHAATSEN.NL</a>
+			</div>
+			<div class="navbar-collapse collapse">
+				<div class="form-inline navbar-form navbar-right">
+					<div class="form-group form-group-sm">
+						<select class="form-control" name="discipline">
+							<option value="">(alle disciplines)</option>
+						</select>
+					</div>
+					<div class="form-group form-group-sm">
+						<select class="form-control" name="venue">
+							<option value="">(alle banen)</option>
+						</select>
+					</div>
+				</div>
+				<ul class="nav navbar-nav">
+					<li><a href="/" ui-sref="competitions">WEDSTRIJDEN</a></li>
+				</ul>
+			</div>
+		</div>
+	</div>
 
-				console.log(competitions);
-				window.c = competitions;
-				var grouped = _.groupBy(competitions, "discipline");
-				Object.keys(grouped).forEach(function (d) {
-					$("<h1></h1>").text(disciplines[d]).appendTo(body);
-					grouped[d].sort(function(a,b){ return a.starts.localeCompare(b.starts) });
-					var lis = grouped[d].map(function (c) {
-						console.log(c.id, c.name);
-						var a = $("<a></a>").attr("href", "https://inschrijven.schaatsen.nl/#/wedstrijd/"+c.id+"/informatie").text(c.name);
-						var li = $("<li></li>");
-						a.appendTo(li);
-						li.append(" - ");
-						$("<a></a>").attr("href", "/competitions/"+c.id+"/results").text("results").appendTo(li);
-						li.append(" - ");
-						$("<a></a>").attr("href", "http://emandovantage.com/api/competitions/"+c.id+"/reports/Results/5").text("original").appendTo(li);
-						return li;
-					});
-					$("<ul />").append(lis).appendTo(body);
-				})
-			}).fail(function(xhr, e) {
-				console.error("Error", e);
-			})
-		</script>
-	</body>
+	<script src="app.js"></script>
+</body>
+
 </html>
-	

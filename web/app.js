@@ -26,9 +26,15 @@ function triggerCompetitionFilter(){
 		.filter(function(v){return v.discipline == localStorage.getItem("discipline") });
 	$("[name=venue]").find("[value!='']").remove();
 	venues.sort(function(a, b) { return a.address.city.localeCompare(b.address.city); });
-	filter("venue", venues.map(function(v){ return [v.code, v.address.city + " ("+v.name+")"]; }));
+	filter("venue", venues.map(function(v){ return [v.code, v.address.city + " ("+maxLength(v.name, 24)+")"]; }));
 }
 	
+function maxLength(text, l){
+	if(text.length > l) {
+		return text.substr(0, l-3)+"...";
+	}
+	return text;
+}
 	
 var master = $('#master');
 var detail = $('#master');
@@ -68,14 +74,15 @@ $(window).on('data-change', function(){
 		grouped[status].sort(function(a,b){ return a.starts.localeCompare(b.starts) });
 		var trs = grouped[status].map(function (c) {
 			var tds = [
-				$("<a></a>").attr("href", "/competitions/"+c.id+"/results").text(c.name).appendTo($("<td></td>")).on("click", showDetail),
+				$("<a></a>").attr("href", "/competitions/"+c.id+"/results").text(c.name).on("click", showDetail),
 				moment(new Date(c.starts)).format('dd DD-MM-YYYY HH:mm'),
 				$("<a></a>").attr("href", "https://inschrijven.schaatsen.nl/#/wedstrijd/"+c.id+"/informatie").html("<i class='glyphicon glyphicon-info-sign' />").attr("target", "_blank"), 
-				$("<a></a>").attr("href", "http://emandovantage.com/api/competitions/"+c.id+"/reports/Results/Pdf").html("<i class='glyphicon glyphicon-file' />").appendTo($("<td></td>"))
-			].map(function(cell) { return $("<td></td>").append(cell); });
+				$("<a></a>").attr("href", "http://emandovantage.com/api/competitions/"+c.id+"/reports/Results/Pdf").html("<i class='glyphicon glyphicon-file' />")
+			].map(function(cell, i) { return $("<td></td>").addClass(i == 0 ? "ellipsis" : (i > 1 ? "td-icon" : "")).append(cell); });
 			return $("<tr></tr>").append(tds);
 		});
-		$("<table />").addClass("table table-condensed table-hover table-striped").append(trs).appendTo(master);
+		trs.unshift("<tr><th class='ellipsis'>Wedstrijd</th><th style='width:11em'>Start</th><th colspan=2 style='width:4em'></th></tr>");
+		var table = $("<table />").addClass("table table-ellipsis table-condensed table-hover table-striped").append(trs).appendTo(master);
 	})
 })
 
@@ -89,7 +96,7 @@ function showDetail(evt) {
 	
 	var name = $(evt.target).closest("tr").find("td:first-child").text();
 	$.getJSON($(evt.target).attr("href")).then(function(data) {
-		detail.html("<h2>"+name+"</h2>");
+		detail.html("<h1>"+name+"</h1>");
 		data.forEach(function(part) {
 			var trs = part.results.map(function(result) {
 				var tds = [

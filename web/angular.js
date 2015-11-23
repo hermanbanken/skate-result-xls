@@ -195,7 +195,7 @@ app.controller('CompetitionDetailCtrl', function ($scope, $stateParams, result, 
 				name: pair[0].split(":")[0],
 				category: pair[0].split(":")[1],
 				cols: _.chain(list).pluck("col").indexBy("index").value(),
-				points: _.chain(list).pluck("points").reduce((s,n) => s+n, 0).value(),
+				points: _.chain(list).filter(u => u.ok).pluck("points").reduce((s,n) => s+n, 0).value(),
 				distances: list.filter(u => u.ok).length
 			}
 		}).value();

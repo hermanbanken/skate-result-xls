@@ -37,7 +37,7 @@ function toSkateTimes(indexed, cell, i) {
 
 	var isInner = cell._id[0].charCodeAt(0) < 'I'.charCodeAt(0);
 
-	var category = (isInner ? cell.d(1, -3) : cell.d(-3, -2))(indexed);
+	var category = (isInner ? cell.d(3, -3) : cell.d(-3, -2))(indexed);
 	var pair =     (isInner ? cell.d(-3,-3) : cell.d(-9, -3))(indexed);
 	category = category && category.value;
 	pair = pair && parseInt(pair.value);

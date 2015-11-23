@@ -10,7 +10,7 @@ var crypto = require('crypto');
 
 app.get('/competitions', function (req, res) {
 	res.type('json');
-	q.nfcall(cache, "competitions", function(cb) { 
+	q.nfcall(cache, "competitions", { postfix: '.json' }, function(cb) { 
 		https.get("https://inschrijven.schaatsen.nl/api/competitions", function(response) {
 			var body = '';
 			response.on('data', function(d) { body += d; });
@@ -19,7 +19,9 @@ app.get('/competitions', function (req, res) {
 			});
 		});
 	}).then(body => {
-		res.send(body);
+		var list = JSON.parse(body);
+		list = list.map(simplifyCompetition);
+		res.json(list);
 	}).fail(e => {
 		res.send("Failed: "+e);
 	});
@@ -28,13 +30,17 @@ app.get('/competitions', function (req, res) {
 var excelPattern = "http://emandovantage.com/api/competitions/:id/reports/Results/5";
 app.get('/competitions/:id/results', function (req, res) {
 	var id = req.params.id;
-	q
-		.nfcall(cache, "results"+id, function(callback) { httpGet(excelPattern.replace(":id", id), callback); })
-		.then(data => {
-			return q.nfcall(handle, data.toString("binary"), {base64: false, checkCRC32: true});	
-		})
-		.then(times => res.json(times))
-		.fail(e => res.send("Failed: "+e));
+	q.nfcall(cache, "results"+id, { postfix: '.json' }, function(callback) {
+		q
+			.nfcall(cache, "results"+id, { postfix: '.xlsx' }, function(callback) { httpGet(excelPattern.replace(":id", id), callback); })
+			.then(data => {
+				return q.nfcall(handle, data.toString("binary"), {base64: false, checkCRC32: true});	
+			})
+			.then(data => callback(null, new Buffer(JSON.stringify(data), 'binary')))
+			.fail(err => callback(err, null));	
+	})
+	.then(times => res.json(JSON.parse(times)))
+	.fail(e => res.send("Failed: "+e));
 });
 
 app.use('/', express.static(__dirname + '/web'));
@@ -44,6 +50,14 @@ var server = app.listen(3000, function () {
   var port = server.address().port;
   console.log('Converter server listening at http://%s:%s', host, port);
 });
+
+var allowed = ["discipline", "starts", "ends", "name", "id", "location", "resultsStatus", "venue"];
+function simplifyCompetition(comp){
+	Object.keys(comp)
+		.filter(key => allowed.indexOf(key) == -1)
+		.forEach(key => delete comp[key]);
+	return comp;
+}
 
 function httpGet(url, cb) {
 	var data = [];
@@ -64,12 +78,18 @@ function httpGet(url, cb) {
 	});
 }
 
-function cache(key, get, callback){
+function cache(key, options, get, callback){
+	if(typeof options == 'function'){
+		callback = get;
+		get = options;
+		options = {};
+	}
+	
 	var hash = crypto.createHash('md5').update(key).digest('hex');
-	var file = 'cache/'+hash;
+	var file = 'cache/'+(options.prefix || "")+hash+(options.postfix || "");
 	fs.stat(file, function (err, stats) {
 		if (!err) {
-			fs.readFile(file, callback);
+			fs.readFile(file, 'binary', callback);
 		} else {
 			get(function(err, data) {
 				if(err)

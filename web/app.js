@@ -70,7 +70,9 @@ $(window).on('data-change', function(){
 		return c.resultsStatus;
 	});
 	Object.keys(grouped).sort().reverse().forEach(function (status) {
-		$("<h1></h1>").text(states[status]).appendTo(master);
+		$("<h3></h3>").text(states[status]+" ")
+			.append($("<a>[api]</a>").addClass("small").attr("href", "/competitions"))
+			.appendTo(master);
 		grouped[status].sort(function(a,b){ return a.starts.localeCompare(b.starts) });
 		var trs = grouped[status].map(function (c) {
 			var tds = [
@@ -95,8 +97,10 @@ function showDetail(evt) {
 		.css({ position: "absolute", top: 0, left: 0, right: 0, height: "10px" });
 	
 	var name = $(evt.target).closest("tr").find("td:first-child").text();
-	$.getJSON($(evt.target).attr("href")).then(function(data) {
-		detail.html("<h1>"+name+"</h1>");
+	var json = $(evt.target).attr("href");
+	$.getJSON(json).then(function(data, xhr) {
+		detail.html("<h3>"+name+" </h3>")
+			.find("h3").append($(" <a>[api]</a>").addClass("small").attr("href", json));
 		data.forEach(function(part) {
 			var trs = part.results.map(function(result) {
 				var tds = [

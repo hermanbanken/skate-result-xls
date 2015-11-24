@@ -2,6 +2,7 @@
 	<div class="row">
 		<div class="col-sm-12" id="master">
 			<h1>Competitions</h1>
+			<div ng-show="!filter.discipline || !filter.venue" class="alert alert-info">Zie je geen wedstrijden? Selecteer eerst een discipline en een baan in het menu.</div>
 			<div class='group' ng-repeat="group in competitions | orderBy:['-state']">
 				<h3>
 					{{ states[group.state] }}

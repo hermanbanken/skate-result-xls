@@ -8,22 +8,36 @@ var fs = require('fs');
 var q = require('q');
 var crypto = require('crypto');
 
-var competitionPromise = () => q.nfcall(cache, "competitions", { postfix: '.json' }, function(cb) { 
-	https.get("https://inschrijven.schaatsen.nl/api/competitions", function(response) {
+function maxAge(count, type) {
+	var delta = 0;
+	switch(type) {
+		case 'd': delta = count * 1000 * 3600 * 24; break;
+		case 'h': delta = count * 1000 * 3600; break;
+		case 'm': delta = count * 1000 * 60; break;
+		case 's': delta = count * 1000; break;
+	}
+	return (stats) => (new Date()).getTime() - stats.mtime.getTime() > delta;
+}
+
+// Basic JSON api call
+var jsonApiPromise = (url, cacheKey, cacheOptions) => q.nfcall(cache, cacheKey, cacheOptions, function(cb) { 
+	https.get(url, function(response) {
 		var body = '';
 		response.on('data', function(d) { body += d; });
 		response.on('end', function() {
 			cb(null, new Buffer(body, 'utf-8'));
 		});
 	});
-}).then(body => {
-	var list = JSON.parse(body);
-	return list;
-});
+}).then(body => { return JSON.parse(body); });
+
+var base = "https://inschrijven.schaatsen.nl/api/";
+var vantage = "http://emandovantage.com/api/";
+var competitionsPromise = () => jsonApiPromise(base+"competitions", "competitions", { postfix: '.json', expired: maxAge(5,'m') });
+var competitionPromise = (id) => jsonApiPromise(base+"competitions/:id".replace(":id", id), "competition", { postfix: '.api.json', expired: maxAge(5,'m') });
 
 app.get('/api/competitions', function (req, res) {
 	res.type('json');
-	competitionPromise().then(list => {
+	competitionsPromise().then(list => {
 		list = list.map(simplifyCompetition);
 		res.json(list);
 	}).fail(e => {
@@ -34,19 +48,20 @@ app.get('/api/competitions', function (req, res) {
 app.get('/api/competitions/:id', function (req, res) {
 	var id = req.params.id;
 	res.type('json');
-	competitionPromise().then(list => {
-		res.json(list.filter(l => l.id == id)[0]);
+	competitionPromise(id).then(obj => {
+		res.json(obj);
 	}).fail(e => {
 		res.send("Failed: "+e);
 	});
 });
 
-var excelPattern = "http://emandovantage.com/api/competitions/:id/reports/Results/5";
+var excelPattern = vantage+"competitions/:id/reports/Results/5";
 app.get('/api/competitions/:id/result', function (req, res) {
 	var id = req.params.id;
-	q.nfcall(cache, "results"+id, { postfix: '.json' }, function(callback) {
+	
+	q.nfcall(cache, "results"+id, { postfix: '.json', expired: maxAge(5,'m') }, function(callback) {
 		q
-			.nfcall(cache, "results"+id, { postfix: '.xlsx' }, function(callback) { httpGet(excelPattern.replace(":id", id), callback); })
+			.nfcall(cache, "results"+id, { postfix: '.xlsx', expired: maxAge(5,'s') }, function(callback) { httpGet(excelPattern.replace(":id", id), callback); })
 			.then(data => {
 				return q.nfcall(handle, data.toString("binary"), {base64: false, checkCRC32: true});	
 			})
@@ -102,7 +117,7 @@ function cache(key, options, get, callback){
 	var hash = crypto.createHash('md5').update(key).digest('hex');
 	var file = 'cache/'+(options.prefix || "")+hash+(options.postfix || "");
 	fs.stat(file, function (err, stats) {
-		if (!err) {
+		if (!err && (typeof options.expired != 'function' || !options.expired(stats))) {
 			fs.readFile(file, 'binary', callback);
 		} else {
 			get(function(err, data) {

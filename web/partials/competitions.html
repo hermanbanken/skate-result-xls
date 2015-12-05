@@ -17,7 +17,7 @@
 					<tr ng-repeat="c in group.value | orderBy:['starts'] | filter:{discipline: filter.discipline, venue: { code: filter.venue }}">
 						<td class='ellipsis'><a ui-sref="competitions.detail({id: c.id})">{{ c.name }}</a></td>
 						<td>{{ c.starts | date:'EEE dd-MM-yyyy HH:mm' }}</td>
-						<td><a href="https://inschrijven.schaatsen.nl/#/wedstrijd/{{ c.id }}"><i class='glyphicon glyphicon-info-sign' /></a></td>
+						<td><a href="https://inschrijven.schaatsen.nl/#/wedstrijd/{{ c.id }}/informatie"><i class='glyphicon glyphicon-info-sign' /></a></td>
 						<td><a href="http://emandovantage.com/api/competitions/{{ c.id }}/reports/Results/Pdf"><i class='glyphicon glyphicon-file' /></a></td>
 					</tr>
 				</table>

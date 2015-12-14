@@ -1,0 +1,12 @@
+<table class="table">
+	<tr>
+		<th></th>
+		<td ng-repeat="skater in filtered = (skaters | withIndexes:compared)" style="width:{{ 100/filtered.length }}%">
+			<h2>{{skater.first_name}} {{skater.last_name}}</h2>
+		</td>
+	</tr>
+	<tr>
+		<th>Categorie</th>
+		<td ng-repeat="skater in filtered">{{skater.category()}}</td>
+	</tr>
+</table>

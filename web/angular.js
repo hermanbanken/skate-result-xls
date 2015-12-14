@@ -6,6 +6,11 @@ angular.module('skateApp.services', [])
 	return $resource('/api/competitions/:id/result', null, {
 		get: { method: "GET", isArray: true }
 	});
+}])
+.factory('SkatersFindResult', ['$resource', function($resource) {
+	return $resource('/api/skaters/find', null, {
+		get: { method: "GET", isArray: true }
+	});
 }]);
 
 var app = angular.module('skateApp', [
@@ -66,7 +71,9 @@ app.config(function($locationProvider, $stateProvider, $urlRouterProvider, $reso
 	//$locationProvider.html5Mode( true );
 	
 	// Routes
-	var root = $stateProvider.state('competitions', {
+	var root = $stateProvider;
+	
+	root.state('competitions', {
 		abstract: true,
 		url: "/competitions",
 		template: "<ui-view />",

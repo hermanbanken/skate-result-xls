@@ -52,11 +52,11 @@ function parsePersonTimes(data) {
 					distance: parseInt(cells[3])
 				};
 				
-				const time = re_race.exec(cells[4]) || cells[4];
+				var time = re_race.exec(cells[4]) || cells[4];
 				race.time = Array.isArray(time) ? time[2] : time;
 				race.osta_rid = Array.isArray(time) ? time[1] : undefined;
 				
-				const tournament = re_tournament.exec(cells[5]) || cells[6];
+				var tournament = re_tournament.exec(cells[5]) || cells[6];
 				race.tournament = Array.isArray(tournament) ? tournament[2] : tournament;
 				race.osta_cid = Array.isArray(tournament) ? tournament[1] : undefined;
 
@@ -70,7 +70,43 @@ function parsePersonTimes(data) {
 	return matches;
 }
 
+function parseRaceDetail(data) {
+	const re_row = /<tr>\s+<td align=right>(\d+)<\/td>\s+<td align=right>([,:.\d]+)<\/td>\s+<td align=right>([,:.\d]*)<\/td>/gim;
+	const re_meta = /<h1>(.*)<\/h1>\s+<p class="wedinfo">(.*?)\s+.*?<\/p>/gi;
+	
+	const meta = re_meta.exec(data);
+	const name = meta && meta[1];
+	const date = meta && meta[2];
+	
+	const matches = [];
+	var found;
+	while (found = re_row.exec(data)) {
+		try {
+			matches.push({
+				distance: found[1], 
+				time: found[2],
+				lap_time: found[3] || undefined
+			})
+		} catch(e) {
+			matches.push([new Error(e).toString(), found[1]]);
+		}
+	}
+	
+	if(matches.length == 0)
+		throw new Error("No times found");
+	if(matches[0].lap_time != undefined)
+		throw new Error("Invalid recording!");
+	
+	return [{
+		name, 
+		date,
+		laps: matches,
+		time: matches[matches.length-1].time
+	}]
+}
+
 module.exports = {
 	parseSearch: parseSearch,
-	parsePersonTimes: parsePersonTimes
+	parsePersonTimes: parsePersonTimes,
+	parseRaceDetail: parseRaceDetail
 }

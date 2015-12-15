@@ -29,13 +29,17 @@ var ostaRitPattern = "http://www.osta.nl/rit.php?ID=:rid"
 var competitionsPromise = () => fetch(base+"competitions", { dataType: 'json', cache: { key: "competitions", postfix: '.json', expired: cache.maxAge(5,'m') }});
 var competitionPromise = (id) => fetch(base+"competitions/:id".replace(":id", id), { dataType: 'json', cache: { key: "competition:"+id, postfix: '.api.json', expired: cache.maxAge(5,'m') } });
 
+function onError(e) {
+	this.send(500, e.stack.replace(/\n/g, "\n<br>").replace(/\s/g, "&nbsp;").replace(/\t/g, "&nbsp;&nbsp;&nbsp;&nbsp;"));
+}
+
 // List of competitions
 app.get('/api/competitions', function (req, res) {
 	res.type('json');
 	competitionsPromise
 		.then(l => l.map(simplifyCompetition))
 		.then(l => res.json(l))
-		.fail(e => res.send("Failed: "+e));
+		.fail(onError.bind(res));
 });
 
 // Single competition with more detail
@@ -43,9 +47,7 @@ app.get('/api/competitions/:id', function (req, res) {
 	res.type('json');
 	competitionPromise(req.params.id).then(obj => {
 		res.json(obj);
-	}).fail(e => {
-		res.send("Failed: "+e);
-	});
+	}).fail(onError.bind(res));
 });
 
 // Resulting times from a competition
@@ -61,7 +63,7 @@ app.get('/api/competitions/:id/result', function (req, res) {
 			.then(data => new Buffer(JSON.stringify(data), 'binary'));
 	})
 	.then(times => res.json(JSON.parse(times)))
-	.fail(e => res.send("Failed: "+e));
+	.fail(onError.bind(res));
 });
 
 // Query linkable services to user name and birthdate
@@ -81,17 +83,45 @@ app.get('/api/skaters/find', function (req, res){
 		
 	q.all([p_osta, p_ssr])
  	  .then(result => res.json([].concat.apply([], result)))
-	  .fail(err => res.send("Failed: "+e));
+	  .fail(onError.bind(res));
 });
 
 // Query skate result times from Osta
 app.get('/api/skaters/osta/:pid', function (req, res){
 	const pid = req.params.pid;
+	
+	if(req.query.rid) {
+		const rid = req.query.rid;
+		var validate = (data) => {
+			if(data.indexOf("Geen rit informatie opgevraagd.") < 0) return true;
+			throw new Error("404 - invalid RID");
+		};
+		
+		httpUtils
+			.fetch(ostaRitPattern.replace(":rid", rid), { validate, cache: { key: "osta.rit:"+rid, postfix: '.osta.html', expired: cache.maxAge(365, 'd') } })
+			.then(osta.parseRaceDetail)
+			.then(detail => res.json({
+				times: detail,
+				more: []
+			}))
+			.fail(onError.bind(res));
+			return;
+	}
+	
+	var validate = (data) => {
+		if(data.indexOf('class="seizoen"') >= 0) 
+			return true; 
+		throw new Error("404 - id not found"); 
+	};
+	
 	httpUtils
-		.fetch(ostaTimesPattern.replace(":pid", pid), { cache: { key: "osta.times:"+pid, postfix: '.osta.html', expired: cache.maxAge(1, 'd') } })
+		.fetch(ostaTimesPattern.replace(":pid", pid), { validate, cache: { key: "osta.times:"+pid, postfix: '.osta.html', expired: cache.maxAge(1, 'd') } })
 		.then(osta.parsePersonTimes)
-		.then(times => res.json({ times: times }))
-		.fail(e => res.send("Failed: "+e));
+		.then(times => res.json({ 
+			times: times, 
+			more: times.filter(t => t.osta_rid).map(t => req.url + "?rid=" + t.osta_rid)
+		}))
+		.fail(onError.bind(res));
 });
 
 // Query skate result times from SSR
@@ -116,7 +146,7 @@ app.get('/api/skaters/ssr/:sid', function (req, res){
 				times: [].concat.apply([], ranks).sort((a,b) => a.ssr_ranking - b.ssr_ranking),
 				more: []
 			});
-		}).fail(e => res.send(500, "Failure: "+e));
+		}).fail(onError.bind(res));
 	}
 	// Retrieve per season competition list 
 	else if(req.query.season) {
@@ -126,17 +156,22 @@ app.get('/api/skaters/ssr/:sid', function (req, res){
 				competitions: data.competitions,
 				more: data.competitions.map(comp => req.url + "&competition=" + comp.id)
 			});
-		}).fail(e => res.send(500, "Failure: "+e));
+		}).fail(onError.bind(res));
 	} 
 	// Retrieve all seasons the user skated after 2006, and fasted times
 	else {
-		httpUtils.fetch(fill(ssrSeasonBestPattern), { dataType: 'json', cache: { key: "ssr.sbs:"+sid, postfix: '.ssr.sbs.json', expired: cache.maxAge(1, 'd') } })
+		var validate = (data) => {
+			if(typeof data == 'string') data = JSON.parse(data);
+			if(data.seasons && data.seasons.length > 0) return true;
+			throw new Error("404 - skater not found");
+		};
+		httpUtils.fetch(fill(ssrSeasonBestPattern), { validate, dataType: 'json', cache: { key: "ssr.sbs:"+sid, postfix: '.ssr.sbs.json', expired: cache.maxAge(1, 'd') } })
 			.then(ssr.parseSeasonBests)
 			.then(data => {
 				data.more = data.seasons.map(season => req.url + "?season=" + season);
 				res.json(data);
 			})
-			.fail(e => res.send(500, "Failure: "+e));	
+			.fail(onError.bind(res));	
 	}
 	
 });

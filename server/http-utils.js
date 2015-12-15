@@ -115,10 +115,17 @@ function fetch(url, options) {
 				} else {
 					source.resolve(new Buffer(output.join(""), 'utf-8'));
 				}
-			});	
+			});
 		});
 		
-		return source.promise;
+		if(typeof options.validate == 'function')
+			return source.promise.then(data => {
+				if(!options.validate(data))
+					throw new Error("Invalid response");
+				return data;
+			});
+		else
+			return source.promise;
 	}
 	
 	var promise = q.defer().promise;
@@ -131,6 +138,14 @@ function fetch(url, options) {
 	} else {
 		promise = retrieve();
 	}
+	
+	// Validate cache too	
+	if(typeof options.validate == 'function')
+		promise = promise.then(data => {
+			if(!options.validate(data))
+				throw new Error("Invalid response");
+			return data;
+		});
 
 	// Unwrap buffer
 	if(options.dataType != 'binary')
@@ -139,7 +154,7 @@ function fetch(url, options) {
 	// Parse json
 	if(options.dataType == 'json')
 		promise = promise.then(data => JSON.parse(data));
-	
+		
 	return promise;
 }
 

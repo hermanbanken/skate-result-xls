@@ -43,6 +43,7 @@ function parseSearch(data) {
 }
 
 function parseSeasonBests(data) {
+	console.log(typeof data);
 	const seasons = data.seasons.map(s => s.start);
 	const times = data.seasons.reduce((memo, season) => {
 		memo.push.apply(memo, season.records.map(record => ({

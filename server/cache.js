@@ -1,5 +1,7 @@
+var q = require('q');
 var fs = require('fs');
 var crypto = require('crypto');
+var debugF = require('debug')('cache');
 
 function cache(key, options, get, callback){
 	if(typeof options == 'function'){
@@ -7,22 +9,47 @@ function cache(key, options, get, callback){
 		get = options;
 		options = {};
 	}
-	
+
 	var hash = crypto.createHash('md5').update(key).digest('hex');
 	var file = 'cache/'+(options.prefix || "")+hash+(options.postfix || "");
-	fs.stat(file, function (err, stats) {
-		if (!err && (typeof options.expired != 'function' || !options.expired(stats))) {
-			fs.readFile(file, 'binary', callback);
-		} else {
-			get(function(err, data) {
-				if(err)
-					throw err;
-				fs.writeFile(file, data, 'binary', function(err, success) {
-					callback(err, Buffer.isBuffer(data) ? data.toString("binary") : data);
-				});
-			});
-		}
+
+	function writeBack(value) {
+		return q
+			.nfcall(fs.writeFile, file, value, 'binary')
+			.then(_ => Buffer.isBuffer(value) ? value.toString("binary") : value);
+	}
+	
+	function debug(msg) {
+		return (v) => debugF(key.substr(0,15), { msg, value: { length: v.length, type: typeof v } });
+	}
+	
+	return q.nfcall(fs.stat, file)
+		.then(stats => typeof options.expired != 'function' || !options.expired(stats) ? q(true) : q.reject("expired cache").tap(debug("cache expired")))
+		.then(_ => q.nfcall(fs.readFile, file, 'binary').tap(debug("using cache")))
+		.fail(e => assumePromise(get).then(writeBack))
+		.nodeify(callback);
+}
+
+/**
+ * Savely assume the function returns a promise, 
+ * otherwise catch the callback and resolve the promise that way.
+ */ 
+function assumePromise(f){
+	var deferred = q.defer();
+	
+	// f might return a promise
+	var maybePromise = f((e, r) => {
+		if(q.isPromise(maybePromise))
+			return console.warn("The function is both a function and called this callback. Preventing duplicate callback now.")
+		// Callback style
+		else e ? deferred.reject(e) : deferred.resolve(r);
 	});
+
+	// Forward	
+	if(q.isPromise(maybePromise))
+		maybePromise.then(deferred.resolve, deferred.reject, deferred.notify);
+	
+	return deferred.promise;
 }
 
 function maxAge(count, type) {

@@ -2,7 +2,7 @@ var q = require('q');
 var https = require('https');
 var http = require('http');
 var querystring = require('querystring');
-var url = require('url');
+var urlTool = require('url');
 var cache = require('./cache');
 
 function httpGet(url, cb) {
@@ -35,7 +35,7 @@ function httpPost(url_path, post_data, cb) {
         'js_code' : post_data
   });
 	
-	var options = url.parse(url_path);
+	var options = urlTool.parse(url_path);
 	options.method = "POST";
 	options.headers = {
 		'Content-Type': 'application/x-www-form-urlencoded',
@@ -75,8 +75,77 @@ function jsonApiPromise(url, cacheKey, cacheOptions) {
 	}).then(body => { return JSON.parse(body); });
 }
 
+function fetch(url, options) {
+	if(typeof url == 'object'){
+			options = url;
+	}
+	if(typeof options == 'undefined') {
+		options = {};
+	}
+	
+	var output = [];
+	
+	// Bare retrieval of data
+	function retrieve() {
+		var httpOptions = options.url || options.httpOptions || typeof url == 'string' && urlTool.parse(url);	
+		var tool = (options.https || httpOptions.protocol == "https:" ? https : http);
+		var method = tool[options.method || 'get'];
+		var source = q.defer();
+		
+		method(httpOptions, function(response) {
+			if(options.dataType == 'binary')
+				response.setEncoding('binary');
+
+			response.on('data', function(d) { 
+				if(d == null) return;
+				if(options.dataType == 'binary') {
+					output.push(Buffer.isBuffer(d) ? d : new Buffer(d, "binary"));
+					return;
+				}
+				output.push(d);
+			});
+
+			response.on('error', function(e) {
+				source.reject(new Error(e));
+			});
+
+			response.on('end', function() {
+				if(options.dataType == 'binary') {
+					source.resolve(Buffer.concat(output));
+				} else {
+					source.resolve(new Buffer(output.join(""), 'utf-8'));
+				}
+			});	
+		});
+		
+		return source.promise;
+	}
+	
+	var promise = q.defer().promise;
+	
+	// Utilise cache or note
+	if(options.cache) {
+		if(!options.cache.key)
+			options.cache.key = typeof url == 'string' ? url : JSON.stringify(url);
+		promise = cache(options.cache.key, options.cache, retrieve);
+	} else {
+		promise = retrieve();
+	}
+
+	// Unwrap buffer
+	if(options.dataType != 'binary')
+		promise = promise.then(buffer => Buffer.isBuffer(buffer) ? buffer.toString() : buffer);
+	
+	// Parse json
+	if(options.dataType == 'json')
+		promise = promise.then(data => JSON.parse(data));
+	
+	return promise;
+}
+
 module.exports = {
 	httpGet: httpGet,
 	httpPost: httpPost,
-	jsonApiPromise: jsonApiPromise
+	jsonApiPromise: jsonApiPromise,
+	fetch: fetch
 }

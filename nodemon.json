@@ -1,3 +1,3 @@
 {
-	"ignore": ["cache/*"]
+	"ignore": ["cache/*", "web/*"]
 }

@@ -1,7 +1,11 @@
 <div class="container-fluid body-content">
 	<div class="row">
 		<div class="col-md-12">
-			<h1>{{skater.first_name}} {{skater.last_name}}</h1>
+			<h1>{{skater.first_name}} {{skater.last_name}}</h1>		
+			<div class="progress">
+				<div class="progress-bar progress-bar-success" style="width: {{ progress_success * 100 }}%;"></div>
+				<div class="progress-bar progress-bar-danger" style="width: {{ progress_error * 100 }}%;"></div>
+			</div>
 			{{skater}}
 		</div>
 	</div>

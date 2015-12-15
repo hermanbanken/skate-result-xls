@@ -33,6 +33,29 @@ function parseCategory(date, inSeason) {
 	return ageToCategory(age);
 }
 
+/**
+ * Parse date format to millis
+ */
+function parseTime(time, isEnglish) {
+	var separators = [
+		isEnglish ? ["?", ":", "."] : [":", ".", ","], // english == format without hours?
+		isEnglish ? [":", ".", ","] : [":", ",", "."]
+	];
+	for(var i = 0; i < separators.length; i++) {
+		var _ = time.lastIndexOf(separators[i][0]),
+				d = time.lastIndexOf(separators[i][1]),
+				c = time.lastIndexOf(separators[i][2]);
+		var subseconds = time.length - c - 1;
+		var t = parseInt(time.substr(c+1)) / Math.pow(10, subseconds) * 1000;
+		var s = parseInt(time.substr(d+1, c - d - 1)) * 1000;
+		var m = d >= 0 ? parseInt(time.substr(_+1, d - _ - 1)) * 1000 * 60 : 0;
+		var h = _ >= 0 ? parseInt(time.substr(0, _)) * 1000 * 3600 : 0;
+		if(!isNaN(t+s+m+h))
+			return t+s+m+h;
+	}
+	console.log(time, "expecting h:mm.ss,ddd or h:mm,ss.ddd", t, s, m, h);
+}
+
 app.factory('skaterService', function() {
 	function Skater(data){
 		for(var key in data) {
@@ -67,11 +90,11 @@ app.factory('skaterService', function() {
 		}
 	};
 	
-	Skater.prototype.equals = function(obj){
+	Skater.prototype.equals = function(obj, ignoreBirthdate){
 		var equal =
 			this.first_name == obj.first_name && 
 			this.last_name == obj.last_name &&
-			(this.birthdate instanceof Date && this.birthdate.getTime()) == (obj.birthdate instanceof Date && obj.birthdate.getTime())
+			(ignoreBirthdate || (this.birthdate instanceof Date && this.birthdate.getTime()) == (obj.birthdate instanceof Date && obj.birthdate.getTime()))
 		return equal;
 	};
 
@@ -82,7 +105,9 @@ app.factory('skaterService', function() {
 		},
 		add: function(data){
 			service.skaters.push(new Skater(data));
-		}
+		},
+		parseTime: parseTime,
+		ageToCategory: ageToCategory
 	};
 	
 	service.save();

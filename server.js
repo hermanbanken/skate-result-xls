@@ -36,7 +36,7 @@ function onError(e) {
 // List of competitions
 app.get('/api/competitions', function (req, res) {
 	res.type('json');
-	competitionsPromise
+	competitionsPromise()
 		.then(l => l.map(simplifyCompetition))
 		.then(l => res.json(l))
 		.fail(onError.bind(res));
@@ -126,7 +126,7 @@ app.get('/api/skaters/osta/:pid', function (req, res){
 
 // Query skate result times from SSR
 app.get('/api/skaters/ssr/:sid', function (req, res){
-	const sid = req.params.sid;
+	const sid = parseInt(req.params.sid);
 	const start = ssr.firstYear;
 	const end = ssr.currentSeason();
 	var fill = (str) => str.replace(":sid", sid).replace(":start", start).replace(":end", end).replace(":season", req.query.season);
@@ -135,6 +135,7 @@ app.get('/api/skaters/ssr/:sid', function (req, res){
 	if(req.query.competition) {
 		const c404 = "Competition not found";
 		const url = ssrCompetitonPattern.replace(":cid", req.query.competition);
+		const isThisSkater = (rank) => rank.ssr_sid == sid;
 		
 		// For each gender, retrieve full rankings
 		var ranks = [0, 1].map(g => httpUtils
@@ -143,7 +144,7 @@ app.get('/api/skaters/ssr/:sid', function (req, res){
 		);
 		q.all(ranks).then(ranks => {
 			res.json({
-				times: [].concat.apply([], ranks).sort((a,b) => a.ssr_ranking - b.ssr_ranking),
+				times: [].concat.apply([], ranks).filter(isThisSkater).sort((a,b) => a.ssr_ranking - b.ssr_ranking),
 				more: []
 			});
 		}).fail(onError.bind(res));
@@ -161,6 +162,7 @@ app.get('/api/skaters/ssr/:sid', function (req, res){
 	// Retrieve all seasons the user skated after 2006, and fasted times
 	else {
 		var validate = (data) => {
+			if(data instanceof Buffer) data = data.toString();
 			if(typeof data == 'string') data = JSON.parse(data);
 			if(data.seasons && data.seasons.length > 0) return true;
 			throw new Error("404 - skater not found");

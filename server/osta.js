@@ -1,4 +1,16 @@
 var regexDebug = require("./scrape-utils").regexDebug;
+var moment = require('moment');
+
+function nlToInternationDate(dateStr) {
+	return dateStr.split("-").reverse().join("-");
+}
+
+function convertToISODate(dateString, inputFormat) {
+	var m = moment.utc(dateString, inputFormat);
+	if(!m.isValid())
+		console.warn("Invalid date", dateString, inputFormat);
+	return m.format('YYYY-MM-DD');
+}
 
 function parseSearch(data) {
 	var re = /<tr>\n<td><a href="\?pid=(.*)">(.*)<\/a><\/td>\n<td>(.*)<\/td>\n<td>(.*)<\/td>\n<td>(.*)<\/td>\n<\/tr>/gi; 
@@ -46,8 +58,8 @@ function parsePersonTimes(data) {
 			if(!cells)
 				matches.push([new Error("Row did not conform to OSTA scrape format.").toString(), found[1], regexDebug(re_cells, found[1])]);
 			else {
-				var race = {
-					date: cells[1],
+				let race = {
+					date: convertToISODate(cells[1], "DD-MM-YYYY"),
 					venue: cells[2],
 					distance: parseInt(cells[3])
 				};

@@ -31,7 +31,7 @@ app.config(function($locationProvider, $stateProvider) {
 	router.state('skaters.link', {
 		url: '/link?first_name&last_name&birthdate',
 		views: {
-			'modal': {
+			'modal@': {
 				templateUrl: 'partials/skaters_link.html',
 				controller: 'SkatersLinkCtrl',
 				resolve: {
@@ -73,9 +73,19 @@ app.controller('SkatersCtrl', function ($scope, $rootScope, $stateParams, skater
 	}
 });
 
-app.controller('SkatersSingleCtrl', function ($scope, $rootScope, $stateParams, skaterService){
+app.controller('SkatersSingleCtrl', function ($scope, $rootScope, $stateParams, skaterService, RaceService) {
 	$stateParams.birthdate = new Date($stateParams.birthdate);
 	$scope.skater = skaterService.skaters.find(skater => skater.equals($stateParams));
+	
+	$scope.progress = 0;
+	$scope.times = RaceService.get($scope.skater).then(result => {
+		console.log("result", result);
+	}, e => {
+		console.log("error", e);
+	}, n => {
+		$scope.progress_success = n.progress_success;
+		$scope.progress_error = n.progress_error;
+	});
 });
 
 app.controller('SkatersLinkCtrl', function ($scope, $state, $stateParams, skaterService, findresult) {
@@ -97,11 +107,18 @@ app.controller('SkatersLinkCtrl', function ($scope, $state, $stateParams, skater
 	$scope.saveLinks = function(){
 		var links = $scope.results.filter(r => r.selected);
 		var updated = skaterService.skaters.filter(skater => skater.equals($stateParams));
+		
+		if(updated.length == 0 && (!$stateParams.birthdate || isNaN($stateParams.birthdate.getTime()))){
+			updated = skaterService.skaters.filter(skater => skater.equals($stateParams, true));
+		}
+		
 		updated.forEach(skater => { skater.ids = links; });
 		skaterService.save();
+		
 		if(updated.length != 1)
 			alert("Something unexpected happened. Sorry :(");
-		$state.go("^");
+		else
+			$state.go("^");
 	};
 	
 	$('.modal').modal({}).on('hidden.bs.modal', function (e) {

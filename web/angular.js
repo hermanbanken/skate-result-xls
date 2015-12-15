@@ -6,11 +6,6 @@ angular.module('skateApp.services', [])
 	return $resource('/api/competitions/:id/result', null, {
 		get: { method: "GET", isArray: true }
 	});
-}])
-.factory('SkatersFindResult', ['$resource', function($resource) {
-	return $resource('/api/skaters/find', null, {
-		get: { method: "GET", isArray: true }
-	});
 }]);
 
 var app = angular.module('skateApp', [
@@ -27,29 +22,6 @@ var app = angular.module('skateApp', [
 	$rootScope.$state = $state;
 	$rootScope.$stateParams = $stateParams;
 });
-
-/**
- * Parse date format to millis
- */
-function parseTime(time, isEnglish) {
-	var separators = [
-		isEnglish ? ["?", ":", "."] : [":", ".", ","], // english == format without hours?
-		isEnglish ? [":", ".", ","] : [":", ",", "."]
-	];
-	for(var i = 0; i < separators.length; i++) {
-		var _ = time.lastIndexOf(separators[i][0]),
-				d = time.lastIndexOf(separators[i][1]),
-				c = time.lastIndexOf(separators[i][2]);
-		var subseconds = time.length - c - 1;
-		var t = parseInt(time.substr(c+1)) / Math.pow(10, subseconds) * 1000;
-		var s = parseInt(time.substr(d+1, c - d - 1)) * 1000;
-		var m = d >= 0 ? parseInt(time.substr(_+1, d - _ - 1)) * 1000 * 60 : 0;
-		var h = _ >= 0 ? parseInt(time.substr(0, _)) * 1000 * 3600 : 0;
-		if(!isNaN(t+s+m+h))
-			return t+s+m+h;
-	}
-	console.log(time, "expecting h:mm.ss,ddd or h:mm,ss.ddd", t, s, m, h);
-}
 
 app.controller('appCtrl', ["$scope", "$rootScope", "$http", function ($scope, $rootScope, $http) {
 	
@@ -130,7 +102,7 @@ app.controller('CompetitionListCtrl', ["$scope", "$rootScope", "$http", "competi
 	
 }]);
 
-app.controller('CompetitionDetailCtrl', function ($scope, $stateParams, result, competition) {
+app.controller('CompetitionDetailCtrl', function ($scope, $stateParams, result, competition, skaterService) {
 	$scope.result = result.map(function(part) {
 		// Find distinct list of passings distances available in this competition part
 		part.passings = _.chain(part.results).pluck("times").map(function(ts) { 
@@ -189,7 +161,7 @@ app.controller('CompetitionDetailCtrl', function ($scope, $stateParams, result, 
 			return list.simple.map(user => ({
 				id: user.id,
 				col: { index: listIndex, distance: list.distance, time: user.time, ok: user.distance == list.distance },
-				points:  (parseTime(user.time, true) / d * 500), 
+				points:  (skaterService.parseTime(user.time, true) / d * 500), 
 				ok: user.distance == list.distance
 			}))
 		});

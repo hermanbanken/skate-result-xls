@@ -1,8 +1,15 @@
+'use strict';
+var moment = require('moment');
+
 function currentSeason() {
 	// minus 1 for stupid JavaScript dates
 	var MONTH_JUNE = 5;
 	var SEASON = new Date().getFullYear() + (new Date().getMonth() <= MONTH_JUNE ? -1 : 0);
 	return SEASON;
+}
+
+function convertToISODate(dateString) {
+	return moment.utc(dateString).format('YYYY-MM-DD');
 }
 
 function parseSearch(data) {
@@ -43,9 +50,8 @@ function parseSearch(data) {
 }
 
 function parseSeasonBests(data) {
-	console.log(typeof data);
-	const seasons = data.seasons.map(s => s.start);
-	const times = data.seasons.reduce((memo, season) => {
+	let seasons = data.seasons.map(s => s.start);
+	let times = data.seasons.reduce((memo, season) => {
 		memo.push.apply(memo, season.records.map(record => ({
 			date: record.date,
 			distance: record.distance,
@@ -60,34 +66,57 @@ function parseSeasonBests(data) {
 	};
 }
 
+const re = {
+	rank: {
+		tournament_date: /<h2>.*<span class="date">(.*)<\/span><\/h2>/gi,
+		row: /<h2>.*<span class="date">(.*)<\/span><\/h2>|<tr.*?>(((.|\n)*?)class="ordinal"((.|\n)*?))<\/tr>/gi,
+		cells: /<td class="ordinal">(\d+)<\/td>\s*<td class="name"><a href="index.php\?p=\d+&amp;s=(\d+)">(.*)<\/a><\/td>\s*<td class="age">(.*?)<\/td>\s*<td.*?<\/td>\s*<td class="time">(.*?)<\/td>\s*<td.*?>(.*)<\/td>/gim,
+		name: /<h1 class="underline">(.*)<\/h1>/ig,
+		meta: /<h2 class="compinfo">(.*)<span class="date">(.*?)<\/span>(<span class="source">Source: (.*?)<\/span>)?<\/h2>/gim
+	},
+	
+}
+
 function parseRanks(data){
-	const re_row = /<tr.*?>(((.|\n)*?)class="ordinal"((.|\n)*?))<\/tr>/gi;
-	const re_cells = /<td class="ordinal">(\d+)<\/td>\s*<td class="name"><a href="index.php\?p=\d+&amp;s=(\d+)">(.*)<\/a><\/td>\s*<td class="age">(.*?)<\/td>\s*<td.*?<\/td>\s*<td class="time">(.*?)<\/td>\s*<td.*?>(.*)<\/td>/gim
-	const re_name = /<h1 class="underline">(.*)<\/h1>/ig;
-	const re_meta = /<h2 class="compinfo">(.*)<span class="date">(.*?)<\/span>(<span class="source">Source: (.*?)<\/span>)<\/h2>/gim;
+	let name = re.rank.name.exec(data);
+	let tournament = name && name[1] || undefined;
+	
+	let meta = re.rank.meta.exec(data);
+	let date;
+	var tournament_day_date = null;
+	if(meta && meta[2].indexOf("-") > 0) {
+		// Multi day
+		date = false;
+	} else if(meta) {
+		// Single day
+		date = convertToISODate(meta[2]);
+	}
+	let ssr_venue = meta ? meta[1] : undefined;
+	let source = meta ? meta[3] : undefined;
 
-	const name = re_name.exec(data);
-	const tournament = name && name[1] || undefined; 
-
-	const meta = re_meta.exec(data);
-	const date = meta ? new Date(meta[2]).toISOString().split("T")[0] : undefined;
-	const ssr_venue = meta ? meta[1] : undefined;
-
-	const matches = [];
+	let matches = [];
 	var found;
-	while (found = re_row.exec(data)) {
-		re_cells.lastIndex = 0;
+	while (found = re.rank.row.exec(data)) {
+		re.rank.cells.lastIndex = 0;
+		re.rank.tournament_date.lastIndex = 0;
 		try {
-			var cells = re_cells.exec(found[0]);
-			if(!cells) {
+			let cells = re.rank.cells.exec(found[0]);
+			
+			if(!cells && re.rank.tournament_date.test(found[0])) {
+				// Row containing specific tournament date
+				tournament_day_date = convertToISODate(found[1]);
+			} else if(!cells) {
+				// Just wrong data
 				matches.push([new Error("Row did not conform to OSTA scrape format.").toString(), found[1], regexDebug(re_cells, found[1])]);
 				continue;
 			}
 			
+			// Normal time row
 			matches.push({
-				date,
+				date: date || tournament_day_date || undefined,
 				ssr_venue,
 				tournament,
+				ssr_source: source,
 				distance: undefined,
 				ssr_ranking: parseInt(cells[1]),
 				ssr_sid: parseInt(cells[2]),
@@ -97,49 +126,9 @@ function parseRanks(data){
 				ssr_records: cells[6] && cells[6].split(" ") || undefined
 			});
 		} catch(e) {
-			matches.push([new Error(e).toString(), found[1]]);
+			matches.push([new Error(e).toString(), found[0]]);
 		}
 	}
-	return matches;
-}
-
-function parsePersonTimes(data) {
-	const re_cells = /<td>(.*?)<\/td><td>(.{2})<\/td><td>(\d+)<\/td><td>(.*?)<\/td><td>.*<\/td><td class="l">(.*?)<\/td>/gim
-	const re_race = /<a href="rit\.php\?pid=.*?&amp;ID=(.*)">(.+)<\/a>|(.+)/gim;
-	const re_tournament = /<a href="OSTAT\/index\.php\?ID=(.*)">(.*)<\/a>|(.+)/gim;
-	
-	const matches = [];
-	var found;
-	while (found = re_row.exec(data)) {
-		re_cells.lastIndex = 0;
-		re_race.lastIndex = 0;
-		re_tournament.lastIndex = 0;
-		try {
-			const cells = re_cells.exec(found[1]);
-			if(!cells)
-				matches.push([new Error("Row did not conform to OSTA scrape format.").toString(), found[1], regexDebug(re_cells, found[1])]);
-			else {
-				var race = {
-					date: cells[1],
-					venue: cells[2],
-					distance: parseInt(cells[3])
-				};
-				
-				const time = re_race.exec(cells[4]) || cells[4];
-				race.time = Array.isArray(time) ? time[2] : time;
-				race.osta_rid = Array.isArray(time) ? time[1] : undefined;
-				
-				const tournament = re_tournament.exec(cells[5]) || cells[6];
-				race.tournament = Array.isArray(tournament) ? tournament[2] : tournament;
-				race.osta_cid = Array.isArray(tournament) ? tournament[1] : undefined;
-
-				matches.push(race);
-			}
-		} catch(e) {
-			matches.push([new Error(e).toString(), found[1]]);
-		}
-	}
-	
 	return matches;
 }
 

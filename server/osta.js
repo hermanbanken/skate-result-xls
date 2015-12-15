@@ -1,3 +1,5 @@
+'use strict';
+
 var regexDebug = require("./scrape-utils").regexDebug;
 var moment = require('moment');
 
@@ -12,15 +14,31 @@ function convertToISODate(dateString, inputFormat) {
 	return m.format('YYYY-MM-DD');
 }
 
+const re = {
+	search: {
+		row: /<tr>\n<td><a href="\?pid=(.*)">(.*)<\/a><\/td>\n<td>(.*)<\/td>\n<td>(.*)<\/td>\n<td>(.*)<\/td>\n<\/tr>/gi
+	},
+	times: {
+		row: /<tr class="tijd">(.*?)<\/tr>/gi,
+		cells: /<td>(.*?)<\/td><td>(.{2})<\/td><td>(\d+)<\/td><td>(.*?)<\/td><td>.*<\/td><td class="l">(.*?)<\/td>/gim,
+		race: /<a href="rit\.php\?pid=.*?&amp;ID=(.*)">(.+)<\/a>|(.+)/gim,
+		tournament: /<a href="OSTAT\/index\.php\?ID=(.*)">(.*)<\/a>|(.+)/gim,
+	},
+	detail: {
+		row: /<tr>\s+<td align=right>(\d+)<\/td>\s+<td align=right>([,:.\d]+)<\/td>\s+<td align=right>([,:.\d]*)<\/td>/gim,
+		meta: /<h1>(.*)<\/h1>\s+<p class="wedinfo">(.*?)\s+.*?<\/p>/gi,
+	}
+}
+
 function parseSearch(data) {
-	var re = /<tr>\n<td><a href="\?pid=(.*)">(.*)<\/a><\/td>\n<td>(.*)<\/td>\n<td>(.*)<\/td>\n<td>(.*)<\/td>\n<\/tr>/gi; 
-	var matches = [], found;
-	while (found = re.exec(data)) {
+	let matches = []; 
+	var found;
+	while (found = re.search.row.exec(data)) {
 		
 		// Retrieve categories
-		var cats = found[3].split("-");
-		var seasons = found[4].split("-").map(s => parseInt(s));
-		var categories = [{
+		let cats = found[3].split("-");
+		let seasons = found[4].split("-").map(s => parseInt(s));
+		let categories = [{
 			season: seasons[0], category: cats[0]
 		}];
 		if(seasons[0] != seasons[1]-1) {
@@ -42,19 +60,14 @@ function parseSearch(data) {
 }
 
 function parsePersonTimes(data) {
-	const re_row = /<tr class="tijd">(.*?)<\/tr>/gi;
-	const re_cells = /<td>(.*?)<\/td><td>(.{2})<\/td><td>(\d+)<\/td><td>(.*?)<\/td><td>.*<\/td><td class="l">(.*?)<\/td>/gim
-	const re_race = /<a href="rit\.php\?pid=.*?&amp;ID=(.*)">(.+)<\/a>|(.+)/gim;
-	const re_tournament = /<a href="OSTAT\/index\.php\?ID=(.*)">(.*)<\/a>|(.+)/gim;
-	
-	const matches = [];
+	let matches = [];
 	var found;
-	while (found = re_row.exec(data)) {
-		re_cells.lastIndex = 0;
-		re_race.lastIndex = 0;
-		re_tournament.lastIndex = 0;
+	while (found = re.times.row.exec(data)) {
+		re.times.cells.lastIndex = 0;
+		re.times.race.lastIndex = 0;
+		re.times.tournament.lastIndex = 0;
 		try {
-			var cells = re_cells.exec(found[1]);
+			let cells = re.times.cells.exec(found[1]);
 			if(!cells)
 				matches.push([new Error("Row did not conform to OSTA scrape format.").toString(), found[1], regexDebug(re_cells, found[1])]);
 			else {
@@ -64,11 +77,11 @@ function parsePersonTimes(data) {
 					distance: parseInt(cells[3])
 				};
 				
-				var time = re_race.exec(cells[4]) || cells[4];
+				let time = re.times.race.exec(cells[4]) || cells[4];
 				race.time = Array.isArray(time) ? time[2] : time;
 				race.osta_rid = Array.isArray(time) ? time[1] : undefined;
 				
-				var tournament = re_tournament.exec(cells[5]) || cells[6];
+				let tournament = re.times.tournament.exec(cells[5]) || cells[6];
 				race.tournament = Array.isArray(tournament) ? tournament[2] : tournament;
 				race.osta_cid = Array.isArray(tournament) ? tournament[1] : undefined;
 
@@ -83,16 +96,13 @@ function parsePersonTimes(data) {
 }
 
 function parseRaceDetail(data) {
-	const re_row = /<tr>\s+<td align=right>(\d+)<\/td>\s+<td align=right>([,:.\d]+)<\/td>\s+<td align=right>([,:.\d]*)<\/td>/gim;
-	const re_meta = /<h1>(.*)<\/h1>\s+<p class="wedinfo">(.*?)\s+.*?<\/p>/gi;
+	let meta = re.detail.meta.exec(data);
+	let name = meta && meta[1];
+	let date = meta && meta[2];
 	
-	const meta = re_meta.exec(data);
-	const name = meta && meta[1];
-	const date = meta && meta[2];
-	
-	const matches = [];
+	let matches = [];
 	var found;
-	while (found = re_row.exec(data)) {
+	while (found = re.detail.row.exec(data)) {
 		try {
 			matches.push({
 				distance: found[1], 

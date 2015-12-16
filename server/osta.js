@@ -26,15 +26,17 @@ const re = {
 	},
 	detail: {
 		row: /<tr>\s+<td align=right>(\d+)<\/td>\s+<td align=right>([,:.\d]+)<\/td>\s+<td align=right>([,:.\d]*)<\/td>/gim,
-		meta: /<h1>(.*)<\/h1>\s+<p class="wedinfo">(.*?)\s+.*?<\/p>/gi,
+		meta: /<h1>(.*)<\/h1>\s+<p class="wedinfo">(\d{4}-\d{2}-\d{2})\s+([^<]*)/gi,
 	}
 }
 
 function parseSearch(data) {
-	let matches = []; 
+	re.search.row.lastIndex = 0;
+
+	let matches = [];
 	var found;
 	while (found = re.search.row.exec(data)) {
-		
+
 		// Retrieve categories
 		let cats = found[3].split("-");
 		let seasons = found[4].split("-").map(s => parseInt(s));
@@ -47,7 +49,7 @@ function parseSearch(data) {
 				category: cats[1] || cats[0]
 			});
 		}
-		
+
 		matches.push({
 			type: 'osta',
 			code: found[1],
@@ -60,6 +62,8 @@ function parseSearch(data) {
 }
 
 function parsePersonTimes(data) {
+	re.times.row.lastIndex = 0;
+
 	let matches = [];
 	var found;
 	while (found = re.times.row.exec(data)) {
@@ -76,11 +80,11 @@ function parsePersonTimes(data) {
 					venue: cells[2],
 					distance: parseInt(cells[3])
 				};
-				
+
 				let time = re.times.race.exec(cells[4]) || cells[4];
 				race.time = Array.isArray(time) ? time[2] : time;
 				race.osta_rid = Array.isArray(time) ? time[1] : undefined;
-				
+
 				let tournament = re.times.tournament.exec(cells[5]) || cells[6];
 				race.tournament = Array.isArray(tournament) ? tournament[2] : tournament;
 				race.osta_cid = Array.isArray(tournament) ? tournament[1] : undefined;
@@ -91,21 +95,24 @@ function parsePersonTimes(data) {
 			matches.push([new Error(e).toString(), found[1]]);
 		}
 	}
-	
+
 	return matches;
 }
 
 function parseRaceDetail(data) {
+	re.detail.row.lastIndex = 0;
+	re.detail.meta.lastIndex = 0;
+
 	let meta = re.detail.meta.exec(data);
 	let name = meta && meta[1];
 	let date = meta && meta[2];
-	
+
 	let matches = [];
 	var found;
 	while (found = re.detail.row.exec(data)) {
 		try {
 			matches.push({
-				distance: found[1], 
+				distance: parseInt(found[1]),
 				time: found[2],
 				lap_time: found[3] || undefined
 			})
@@ -113,16 +120,17 @@ function parseRaceDetail(data) {
 			matches.push([new Error(e).toString(), found[1]]);
 		}
 	}
-	
+
 	if(matches.length == 0)
 		throw new Error("No times found");
 	if(matches[0].lap_time != undefined)
 		throw new Error("Invalid recording!");
 	
 	return [{
-		name, 
+		name,
 		date,
 		laps: matches,
+		distance: matches[matches.length-1].distance,
 		time: matches[matches.length-1].time
 	}]
 }

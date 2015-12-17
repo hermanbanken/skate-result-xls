@@ -37,23 +37,31 @@ function parseCategory(date, inSeason) {
  * Parse date format to millis
  */
 function parseTime(time, isEnglish) {
-	var separators = [
-		isEnglish ? ["?", ":", "."] : [":", ".", ","], // english == format without hours?
-		isEnglish ? [":", ".", ","] : [":", ",", "."]
-	];
-	for(var i = 0; i < separators.length; i++) {
-		var _ = time.lastIndexOf(separators[i][0]),
-				d = time.lastIndexOf(separators[i][1]),
-				c = time.lastIndexOf(separators[i][2]);
-		var subseconds = time.length - c - 1;
-		var t = parseInt(time.substr(c+1)) / Math.pow(10, subseconds) * 1000;
-		var s = parseInt(time.substr(d+1, c - d - 1)) * 1000;
-		var m = d >= 0 ? parseInt(time.substr(_+1, d - _ - 1)) * 1000 * 60 : 0;
-		var h = _ >= 0 ? parseInt(time.substr(0, _)) * 1000 * 3600 : 0;
-		if(!isNaN(t+s+m+h))
-			return t+s+m+h;
+	var output = 0;
+	var multipliers = [1, 1000, 1000 * 60, 1000 * 3600];
+	var multi, part, parts = time.split(/[:,\.]/g);
+	if(parts[parts.length-1].length == 2) 
+		multipliers[0] = 10;
+	do {
+		part = parts.pop();
+		multi = multipliers.shift();
+		output += multi * parseInt(part);
 	}
-	console.log(time, "expecting h:mm.ss,ddd or h:mm,ss.ddd", t, s, m, h);
+	while (parts.length && multipliers.length);
+	return output;
+}
+
+function pad(num, size) {
+    var s = num+"";
+    while (s.length < size) s = "0" + s;
+    return s;
+}
+
+function formatTime(millis) {
+  var us = millis % 1000,
+      ss = ((millis - us) / 1000) % 60000,
+      ms = ((millis - ss * 1000 - us) / 60000) % 60*60*1000;
+	return (ms > 0 ? (ms + ":") : "") + pad(ss,2) + "." + pad(us,3).substr(0,2);
 }
 
 app.factory('skaterService', function() {
@@ -107,6 +115,7 @@ app.factory('skaterService', function() {
 			service.skaters.push(new Skater(data));
 		},
 		parseTime: parseTime,
+		formatTime: formatTime,
 		ageToCategory: ageToCategory
 	};
 	

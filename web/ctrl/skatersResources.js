@@ -54,6 +54,18 @@ app
 			
 			return deferred.promise;
 		}
+		
+		function mergeSources(data) {
+			data.times = _
+				.chain(data.times)
+				// Join by day - might be not good enough
+				.groupBy(m => m.date + "|" + m.distance + "|" + m.time)
+				// Merge
+				.map(t => _.extend.bind(_, {}).apply(_, t))
+				.sortBy(m => m.date)
+				.value();
+			return data;
+		}
 	
 		// !Actual processing!
 		
@@ -62,7 +74,8 @@ app
 			if(input.ids) {
 				return $q
 					.all(input.ids.map(get))
-					.then(list => combine(null, list));
+					.then(list => combine(null, list))
+					.then(mergeSources);
 			}
 			
 			if(!input.type || !input.code)

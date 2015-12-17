@@ -73,12 +73,14 @@ app.controller('SkatersCtrl', function ($scope, $rootScope, $stateParams, skater
 	}
 });
 
-app.controller('SkatersSingleCtrl', function ($scope, $rootScope, $stateParams, skaterService, RaceService) {
+app.controller('SkatersSingleCtrl', function ($scope, $rootScope, $stateParams, skaterService, RaceService, historyTimePlot) {
 	$stateParams.birthdate = new Date($stateParams.birthdate);
-	$scope.skater = skaterService.skaters.find(skater => skater.equals($stateParams));
+	$scope.skater = skaterService.skaters.find(skater => skater.equals($stateParams, true));
 	
 	$scope.progress = 0;
 	$scope.times = RaceService.get($scope.skater).then(result => {
+		window.result = result;
+		historyTimePlot(result.times.filter(m => m.distance == 500), "#graph", match => match.name);
 		console.log("result", result);
 	}, e => {
 		console.log("error", e);

@@ -19,6 +19,7 @@ const re = {
 		row: /<tr>\n<td><a href="\?pid=(.*)">(.*)<\/a><\/td>\n<td>(.*)<\/td>\n<td>(.*)<\/td>\n<td>(.*)<\/td>\n<\/tr>/gi
 	},
 	times: {
+		name: /<h1>(.*)<\/h1>/gi,
 		row: /<tr class="tijd">(.*?)<\/tr>/gi,
 		cells: /<td>(.*?)<\/td><td>(.{2})<\/td><td>(\d+)<\/td><td>(.*?)<\/td><td>.*<\/td><td class="l">(.*?)<\/td>/gim,
 		race: /<a href="rit\.php\?pid=.*?&amp;ID=(.*)">(.+)<\/a>|(.+)/gim,
@@ -63,6 +64,10 @@ function parseSearch(data) {
 
 function parsePersonTimes(data) {
 	re.times.row.lastIndex = 0;
+	re.times.name.lastIndex = 0;
+	
+	let nameMatch = re.times.name.exec(data);
+	let name = nameMatch && nameMatch[1] || undefined;
 
 	let matches = [];
 	var found;
@@ -76,6 +81,7 @@ function parsePersonTimes(data) {
 				matches.push([new Error("Row did not conform to OSTA scrape format.").toString(), found[1], regexDebug(re_cells, found[1])]);
 			else {
 				let race = {
+					name,
 					date: convertToISODate(cells[1], "DD-MM-YYYY"),
 					venue: cells[2],
 					distance: parseInt(cells[3])
@@ -107,36 +113,55 @@ function parseRaceDetail(data) {
 	let name = meta && meta[1];
 	let date = meta && meta[2];
 
-	let matches = [];
+	let laps = [];
 	var found;
 	while (found = re.detail.row.exec(data)) {
 		try {
-			matches.push({
+			laps.push({
 				distance: parseInt(found[1]),
 				time: found[2],
 				lap_time: found[3] || undefined
 			})
 		} catch(e) {
-			matches.push([new Error(e).toString(), found[1]]);
+			laps.push([new Error(e).toString(), found[1]]);
 		}
 	}
 
-	if(matches.length == 0)
-		throw new Error("No times found");
-	if(matches[0].lap_time != undefined)
-		throw new Error("Invalid recording!");
-	
-	return [{
+	var match = {
 		name,
 		date,
-		laps: matches,
-		distance: matches[matches.length-1].distance,
-		time: matches[matches.length-1].time
-	}]
+		laps,
+		distance: laps[laps.length-1].distance,
+		time: laps[laps.length-1].time
+	};
+	
+	if(!validateLaps(match)){
+		console.warn(new Error("Invalid laps!"), JSON.stringify(match));	
+		return [];
+	}
+	
+	return [match];
+}
+
+function validateLaps(match) {
+	var lapLength = match.venue != "NY" ? 400 : 333;
+
+	var run = match.laps.reduceRight((memo, lap) => {
+		if(memo[0] && lap.distance === memo[1])
+			return [true, memo[1] - lapLength];
+		return [false, 0];
+	}, [true, match.distance]);
+	
+	var shouldHave = Math.floor(match.distance / lapLength);
+	if(match.distance % lapLength != 0)
+		shouldHave++;
+
+	return run[0] && match.laps.length == shouldHave;
 }
 
 module.exports = {
 	parseSearch: parseSearch,
 	parsePersonTimes: parsePersonTimes,
-	parseRaceDetail: parseRaceDetail
+	parseRaceDetail: parseRaceDetail,
+	validateLaps: validateLaps,
 }

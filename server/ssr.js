@@ -8,8 +8,8 @@ function currentSeason() {
 	return SEASON;
 }
 
-function convertToISODate(dateString) {
-	var m = moment.utc(dateString);
+function convertToISODate(dateString, format) {
+	var m = moment.utc(dateString, format);
 	if(!m.isValid()) {
 		console.warn(dateString, "is not a valid moment time");
 	}
@@ -53,10 +53,11 @@ function parseSearch(data) {
 	}
 }
 
-function parseSeasonBests(data) {
+function parseSeasonBests(data, addName) {
 	let seasons = data.seasons.map(s => s.start);
 	let times = data.seasons.reduce((memo, season) => {
 		memo.push.apply(memo, season.records.map(record => ({
+			name: addName,
 			date: record.date,
 			distance: record.distance,
 			ssr_venue: record.location,
@@ -71,12 +72,22 @@ function parseSeasonBests(data) {
 }
 
 const re = {
+	profile: {
+		name: /<h1 class="underline">(.*)<\/h1>/ig,
+	},
 	rank: {
 		row: /<h2>(\d+)m (Ladies|Men)[^<]*(<span class="date">(.*)<\/span>)?<\/h2>|<tr.*?>(((.|\n)*?)class="ordinal"((.|\n)*?))<\/tr>/gi,
 		cells: /<td class="ordinal">(\d+)<\/td>\s*<td class="name"><a href="index.php\?p=\d+&amp;s=(\d+)">(.*)<\/a><\/td>\s*<td class="age">(.*?)<\/td>\s*<td.*?<\/td>\s*<td class="time">(.*?)<\/td>\s*<td.*?>(.*)<\/td>/gim,
 		name: /<h1 class="underline">(.*)<\/h1>/ig,
 		meta: /<h2 class="compinfo">(.*)<span class="date">(.*?)<\/span>(<span class="source">Source: (.*?)<\/span>)?<\/h2>/gim
 	},
+}
+
+function parseProfile(data) {
+	let name = re.rank.name.exec(data);
+	return {
+		name: name && name[1] || undefined
+	};
 }
 
 function parseRanks(data){
@@ -97,7 +108,7 @@ function parseRanks(data){
 		date = false;
 	} else if(meta) {
 		// Single day
-		date = convertToISODate(meta[2]);
+		date = convertToISODate(meta[2], "DD MMMM YYYY");
 	}
 	
 	let ssr_venue = meta ? meta[1] : undefined;
@@ -111,7 +122,7 @@ function parseRanks(data){
 			// Row containing specific tournament info
 			if(found[1]) {
 				tournament_distance = parseInt(found[1]);
-				tournament_day_date = found[4] && convertToISODate(found[4]);
+				tournament_day_date = found[4] && convertToISODate(found[4], "DD MMMM YYYY");
 				continue;
 			}
 			else {
@@ -156,6 +167,7 @@ module.exports = {
 	currentSeason: currentSeason,
 
 	parseSearch: parseSearch,
+	parseProfile: parseProfile,
 	parseSeasonBests: parseSeasonBests,
 	parseRanks: parseRanks,
 

@@ -20,6 +20,7 @@ var vantage = "http://emandovantage.com/api/";
 var excelPattern = vantage+"competitions/:id/reports/Results/5";
 var ostaPattern = "http://www.osta.nl/?ZoekStr=:q"
 var ssrPattern = "http://speedskatingresults.com/api/json/skater_lookup?familyname=:ln&givenname=:fn"
+var ssrProfilePattern = "http://speedskatingresults.com/index.php?p=17&s=:sid"
 var ssrSeasonBestPattern = "http://speedskatingresults.com/api/json/season_bests.php?skater=:sid&start=:start&end=:end"
 var ssrCompetitonsPattern = "http://speedskatingresults.com/api/json/skater_competitions.php?skater=:sid&season=:season"
 var ssrCompetitonPattern = "http://speedskatingresults.com/index.php?p=4&e=:cid&g=:gender"
@@ -118,7 +119,7 @@ app.get('/api/skaters/osta/:pid', function (req, res){
 		.fetch(ostaTimesPattern.replace(":pid", pid), { validate, cache: { key: "osta.times:"+pid, postfix: '.osta.html', expired: cache.maxAge(1, 'd') } })
 		.then(osta.parsePersonTimes)
 		.then(times => res.json({ 
-			times: times, 
+			times: times,
 			more: times.filter(t => t.osta_rid).map(t => req.url + "?rid=" + t.osta_rid)
 		}))
 		.fail(onError.bind(res));
@@ -159,7 +160,7 @@ app.get('/api/skaters/ssr/:sid', function (req, res){
 			});
 		}).fail(onError.bind(res));
 	} 
-	// Retrieve all seasons the user skated after 2006, and fasted times
+	// Retrieve all seasons the user skated after 2006, and fastest times
 	else {
 		var validate = (data) => {
 			if(data instanceof Buffer) data = data.toString();
@@ -167,8 +168,13 @@ app.get('/api/skaters/ssr/:sid', function (req, res){
 			if(data.seasons && data.seasons.length > 0) return true;
 			throw new Error("404 - skater not found");
 		};
-		httpUtils.fetch(fill(ssrSeasonBestPattern), { validate, dataType: 'json', cache: { key: "ssr.sbs:"+sid, postfix: '.ssr.sbs.json', expired: cache.maxAge(1, 'd') } })
-			.then(ssr.parseSeasonBests)
+		
+		var profile = httpUtils.fetch(fill(ssrProfilePattern), { dataType: 'html', cache: { key: "ssr.profile"+sid, postfix: '.ssr.profile.html', expired: cache.maxAge(365, 'd') } })
+			.then(ssr.parseProfile);
+		var sbs = httpUtils.fetch(fill(ssrSeasonBestPattern), { validate, dataType: 'json', cache: { key: "ssr.sbs:"+sid, postfix: '.ssr.sbs.json', expired: cache.maxAge(1, 'd') } })
+
+		q.all([profile, sbs])
+			.spread((profile, data) => ssr.parseSeasonBests(data, profile.name))
 			.then(data => {
 				data.more = data.seasons.map(season => req.url + "?season=" + season);
 				res.json(data);

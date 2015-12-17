@@ -12,7 +12,6 @@ var httpGet = httpUtils.httpGet;
 var jsonApiPromise = httpUtils.jsonApiPromise;
 var fetch = httpUtils.fetch;
 var cache = require('./server/cache');
-var diff = require('diff').diffJson;
 
 // Vars:
 var base = "https://inschrijven.schaatsen.nl/api/";

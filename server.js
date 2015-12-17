@@ -23,7 +23,7 @@ var ssrPattern = "http://speedskatingresults.com/api/json/skater_lookup?familyna
 var ssrProfilePattern = "http://speedskatingresults.com/index.php?p=17&s=:sid"
 var ssrSeasonBestPattern = "http://speedskatingresults.com/api/json/season_bests.php?skater=:sid&start=:start&end=:end"
 var ssrCompetitonsPattern = "http://speedskatingresults.com/api/json/skater_competitions.php?skater=:sid&season=:season"
-var ssrCompetitonPattern = "http://speedskatingresults.com/index.php?p=4&e=:cid&g=:gender"
+var ssrCompetitonPattern = "http://speedskatingresults.com/index.php?p=6&e=:cid"
 var ostaTimesPattern = "http://www.osta.nl/?pid=:pid&Seizoen=ALL&Afstand=&perAfstand=0"
 var ostaRitPattern = "http://www.osta.nl/rit.php?ID=:rid"
 
@@ -71,17 +71,17 @@ app.get('/api/competitions/:id/result', function (req, res) {
 app.get('/api/skaters/find', function (req, res){
 	const name = req.query.first_name + " " + req.query.last_name;
 	const id = JSON.stringify([ req.query.first_name, req.query.last_name, req.query.birthdate ]);
-	
+
 	const osta_url = ostaPattern.replace(":q", name);
 	const p_osta = httpUtils
 		.fetch(osta_url, { cache: { key: "osta."+id, postfix: '.osta.html', expired: cache.maxAge(10, 'd') } })
 		.then(osta.parseSearch);
-	
+
 	const ssr_url = ssrPattern.replace(':ln', req.query.last_name).replace(':fn', req.query.first_name);
 	const p_ssr = httpUtils
 		.fetch(ssr_url, { cache: { key: "ssr."+id, postfix: '.ssr.json', expired: cache.maxAge(10, 'd') } })
 	 	.then(ssr.parseSearch);
-		
+
 	q.all([p_osta, p_ssr])
  	  .then(result => res.json([].concat.apply([], result)))
 	  .fail(onError.bind(res));
@@ -90,14 +90,14 @@ app.get('/api/skaters/find', function (req, res){
 // Query skate result times from Osta
 app.get('/api/skaters/osta/:pid', function (req, res){
 	const pid = req.params.pid;
-	
+
 	if(req.query.rid) {
 		const rid = req.query.rid;
 		var validate = (data) => {
 			if(data.indexOf("Geen rit informatie opgevraagd.") < 0) return true;
 			throw new Error("404 - invalid RID");
 		};
-		
+
 		httpUtils
 			.fetch(ostaRitPattern.replace(":rid", rid), { validate, cache: { key: "osta.rit:"+rid, postfix: '.osta.html', expired: cache.maxAge(365, 'd') } })
 			.then(osta.parseRaceDetail)
@@ -108,17 +108,17 @@ app.get('/api/skaters/osta/:pid', function (req, res){
 			.fail(onError.bind(res));
 			return;
 	}
-	
+
 	var validate = (data) => {
-		if(data.indexOf('class="seizoen"') >= 0) 
-			return true; 
-		throw new Error("404 - id not found"); 
+		if(data.indexOf('class="seizoen"') >= 0)
+			return true;
+		throw new Error("404 - id not found");
 	};
-	
+
 	httpUtils
 		.fetch(ostaTimesPattern.replace(":pid", pid), { validate, cache: { key: "osta.times:"+pid, postfix: '.osta.html', expired: cache.maxAge(1, 'd') } })
 		.then(osta.parsePersonTimes)
-		.then(times => res.json({ 
+		.then(times => res.json({
 			times: times,
 			more: times.filter(t => t.osta_rid).map(t => req.url + "?rid=" + t.osta_rid)
 		}))
@@ -136,21 +136,25 @@ app.get('/api/skaters/ssr/:sid', function (req, res){
 	if(req.query.competition) {
 		const c404 = "Competition not found";
 		const url = ssrCompetitonPattern.replace(":cid", req.query.competition);
-		const isThisSkater = (rank) => rank.ssr_sid == sid;
 		
-		// For each gender, retrieve full rankings
-		var ranks = [0, 1].map(g => httpUtils
-			.fetch(url.replace(":gender", g), { dataType: 'html', cache: { postfix: '.ssr.comp.html', expired: cache.maxAge(365, 'd') } })
-			.then(ssr.parseRanks)
-		);
-		q.all(ranks).then(ranks => {
-			res.json({
-				times: [].concat.apply([], ranks).filter(isThisSkater).sort((a,b) => a.ssr_ranking - b.ssr_ranking),
-				more: []
-			});
-		}).fail(onError.bind(res));
+		// Retrieve profile for name
+		var profile = httpUtils.fetch(fill(ssrProfilePattern), { dataType: 'html', cache: { key: "ssr.profile"+sid, postfix: '.ssr.profile.html', expired: cache.maxAge(365, 'd') } })
+			.then(ssr.parseProfile);
+
+		// Retrieve full rankings
+		var ranks = httpUtils
+			.fetch(url, { dataType: 'html', cache: { postfix: '.ssr.comp.html', expired: cache.maxAge(365, 'd') } })
+			.then(ssr.parseRanks);
+
+		q.all([ranks, profile])
+		  .spread((ranks, profile) => {
+				res.json({
+					times: ranks.filter(r => r.name == profile.name).sort((a,b) => a.ssr_ranking - b.ssr_ranking),
+					more: []
+				});
+			}).fail(onError.bind(res));
 	}
-	// Retrieve per season competition list 
+	// Retrieve per season competition list
 	else if(req.query.season) {
 		var comps = httpUtils.fetch(fill(ssrCompetitonsPattern), { dataType: 'json', cache: { postfix: '.ssr.comps.json', expired: cache.maxAge(1, 'd') } })
 		comps.then(data => {
@@ -159,7 +163,7 @@ app.get('/api/skaters/ssr/:sid', function (req, res){
 				more: data.competitions.map(comp => req.url + "&competition=" + comp.id)
 			});
 		}).fail(onError.bind(res));
-	} 
+	}
 	// Retrieve all seasons the user skated after 2006, and fastest times
 	else {
 		var validate = (data) => {
@@ -168,7 +172,7 @@ app.get('/api/skaters/ssr/:sid', function (req, res){
 			if(data.seasons && data.seasons.length > 0) return true;
 			throw new Error("404 - skater not found");
 		};
-		
+
 		var profile = httpUtils.fetch(fill(ssrProfilePattern), { dataType: 'html', cache: { key: "ssr.profile"+sid, postfix: '.ssr.profile.html', expired: cache.maxAge(365, 'd') } })
 			.then(ssr.parseProfile);
 		var sbs = httpUtils.fetch(fill(ssrSeasonBestPattern), { validate, dataType: 'json', cache: { key: "ssr.sbs:"+sid, postfix: '.ssr.sbs.json', expired: cache.maxAge(1, 'd') } })
@@ -179,9 +183,9 @@ app.get('/api/skaters/ssr/:sid', function (req, res){
 				data.more = data.seasons.map(season => req.url + "?season=" + season);
 				res.json(data);
 			})
-			.fail(onError.bind(res));	
+			.fail(onError.bind(res));
 	}
-	
+
 });
 
 app.use('/', express.static(__dirname + '/web'));

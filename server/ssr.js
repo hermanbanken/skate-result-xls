@@ -84,10 +84,55 @@ const re = {
 }
 
 function parseProfile(data) {
+	re.rank.name.lastIndex = 0;
 	let name = re.rank.name.exec(data);
 	return {
 		name: name && name[1] || undefined
 	};
+}
+
+function parseTextualRanks(data) {
+	let text = /<pre>((.|[\r\n])*)<\/pre>/mi.exec(data);
+	let lines = text[1].trim().split("\n", 4);
+	let header = lines.slice(0, 3);
+	let tournament = header[0], ssr_venue = header[1], date = header[2];
+
+	if(date.indexOf("-") >= 0) {
+		date = undefined;
+	} else if(moment(date, "DD MMMM YYYY").isValid()) {
+		date = convertToISODate(date, "DD MMMM YYYY");
+	}
+
+	let re_row = /^((\d+)m (Ladies|Men).* - ([^\-\n]*)|(\d+)\s+(.*)\s(L..|M..)\s+([A-Z]{3})\s+([\d.,:]*)\s+([\sA-Z]*)?)$/mg
+	let matches = [];
+	var found, tournament_day_date, tournament_distance;
+	while (found = re_row.exec(text[1])) {
+		// Header row with date
+		if(found[2]) {
+			tournament_distance = found[2];
+
+			if(moment(found[4], "DD MMMM YYYY").isValid())
+				tournament_day_date = convertToISODate(found[4], "DD MMMM YYYY");
+		}
+
+		if(!found[6])
+			continue;
+
+		// Race result row
+		matches.push({
+			date: date || tournament_day_date || undefined,
+			ssr_venue,
+			tournament,
+			distance: tournament_distance,
+			ssr_ranking: parseInt(found[5]),
+			name: found[6].trim(),
+			ssr_age: found[7].replace("L","D").replace("M","H"),
+			time: convertToMetricTime(found[9]),
+			ssr_records: found[10] && found[10].split(" ") || undefined
+		})
+	}
+
+	return matches;
 }
 
 function parseRanks(data){
@@ -110,7 +155,7 @@ function parseRanks(data){
 		// Single day
 		date = convertToISODate(meta[2], "DD MMMM YYYY");
 	}
-	
+
 	let ssr_venue = meta ? meta[1] : undefined;
 	let source = meta ? meta[3] : undefined;
 
@@ -169,7 +214,7 @@ module.exports = {
 	parseSearch: parseSearch,
 	parseProfile: parseProfile,
 	parseSeasonBests: parseSeasonBests,
-	parseRanks: parseRanks,
+	parseRanks: parseTextualRanks,
 
 	convertToMetricTime: convertToMetricTime,
 	convertToVenueCode: function(venue) {

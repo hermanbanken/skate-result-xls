@@ -9,14 +9,16 @@ function cache(key, options, get, callback){
 		get = options;
 		options = {};
 	}
+	
+	var encoding = options.encoding || 'utf8';
 
 	var hash = crypto.createHash('md5').update(key).digest('hex');
 	var file = 'cache/'+(options.prefix || "")+hash+(options.postfix || "");
 
 	function writeBack(value) {
 		return q
-			.nfcall(fs.writeFile, file, value, 'binary')
-			.then(_ => Buffer.isBuffer(value) ? value.toString("binary") : value);
+			.nfcall(fs.writeFile, file, value, encoding)
+			.then(_ => Buffer.isBuffer(value) ? value.toString(encoding) : value);
 	}
 	
 	function debug(msg) {
@@ -25,7 +27,7 @@ function cache(key, options, get, callback){
 	
 	return q.nfcall(fs.stat, file)
 		.then(stats => typeof options.expired != 'function' || !options.expired(stats) ? q(true) : q.reject("expired cache").tap(debug("cache expired")))
-		.then(_ => q.nfcall(fs.readFile, file, 'binary').tap(debug("using cache")))
+		.then(_ => q.nfcall(fs.readFile, file, encoding).tap(debug("using cache")))
 		.fail(e => assumePromise(get).then(writeBack))
 		.nodeify(callback);
 }

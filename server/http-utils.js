@@ -8,10 +8,10 @@ var cache = require('./cache');
 function httpGet(url, cb) {
 	var data = [];
 	http.get(url, function (res) {
-		res.setEncoding('binary');
+		res.setEncoding('utf8');
 		res.on('data', function(chunk) {
 			if (chunk !== null) {
-				data.push(Buffer.isBuffer(chunk) ? chunk : new Buffer(chunk, "binary"));
+				data.push(Buffer.isBuffer(chunk) ? chunk : new Buffer(chunk, "utf8"));
 			}
 		});
 		res.on('end', function() {
@@ -43,10 +43,10 @@ function httpPost(url_path, post_data, cb) {
 	};
 	
 	var req = http.request(options, function (res) {
-		res.setEncoding('binary');
+		res.setEncoding('utf8');
 		res.on('data', function(chunk) {
 			if (chunk !== null) {
-				data.push(Buffer.isBuffer(chunk) ? chunk : new Buffer(chunk, "binary"));
+				data.push(Buffer.isBuffer(chunk) ? chunk : new Buffer(chunk, "utf8"));
 			}
 		});
 		res.on('end', function() {

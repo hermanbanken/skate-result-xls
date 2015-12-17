@@ -57,11 +57,11 @@ app.get('/api/competitions/:id/result', function (req, res) {
 	cache("results:"+id, { postfix: '.json', expired: cache.maxAge(5,'m') }, () => {
 		return httpUtils
 			// Fetch XLSX
-			.fetch(excelPattern.replace(":id", id), { dataType: 'binary', cache: { key: 'xlsx:'+id, postfix: '.xlsx'  } })
+			.fetch(excelPattern.replace(":id", id), { dataType: 'binary', cache: { encoding: 'binary', key: 'xlsx:'+id, postfix: '.xlsx'  } })
 			// Parse XLSX to result JSON output
 			.then(data => q.nfcall(handle, data.toString('binary'), {base64: false, checkCRC32: true}))
 			// Prepare for json file storage
-			.then(data => new Buffer(JSON.stringify(data), 'binary'));
+			.then(data => new Buffer(JSON.stringify(data), 'utf8'));
 	})
 	.then(times => res.json(JSON.parse(times)))
 	.fail(onError.bind(res));

@@ -5,6 +5,7 @@
 	<base href="/">
 	<title>Result extracter</title>
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.5/css/bootstrap.css" type="text/css" />
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/plottable.js/2.0.0/plottable.css" type="text/css" />
 	<link rel="stylesheet" href="app.css" type="text/css" />
 	<script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
@@ -49,6 +50,7 @@
 				</div>
 				<ul class="nav navbar-nav">
 					<li><a href="/" ui-sref="competitions.list">WEDSTRIJDEN</a></li>
+					<li><a href="/" ui-sref="skaters">SCHAATSERS</a></li>
 				</ul>
 			</div>
 		</div>
@@ -62,13 +64,23 @@
 		</div>
 	</div>
 	</div>
+	
+	<div ui-view="modal"></div>
 
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.4.8/angular.min.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.4.8/angular-route.min.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.4.8/angular-resource.min.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/angular-ui-router/0.2.15/angular-ui-router.min.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/angular-filter/0.5.8/angular-filter.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.11/d3.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/plottable.js/2.0.0/plottable.min.js"></script>
 	<script src="angular.js"></script>
+	<script src="ctrl/skaterService.js"></script>
+	<script src="ctrl/skatersCompare.js"></script>
+	<script src="ctrl/skatersResources.js"></script>
+	<script src="ctrl/skaters.js"></script>
+	<script src="ctrl/loader.js"></script>
+	<script src="ctrl/historyTimePlot.js"></script>
 	<!--<script src="app.js"></script>-->
 	<script>
 		(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){

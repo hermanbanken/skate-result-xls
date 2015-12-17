@@ -1,0 +1,42 @@
+<div class="modal fade" tabindex="-1" role="dialog">
+	<div class="modal-dialog modal-lg">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+				<h4 class="modal-title">Koppel diensten</h4>
+			</div>
+			<div class="modal-body">
+				<p>
+					We proberen automatisch te detecteren welke licenties en koppelingen bij de opgegeven naam en geboortedatum horen.
+					Als je geen geboortedatum hebt opgegeven dan moet je zelf een selectie maken.
+					Je kan deze selectie later nog aanpassen. 
+					Het kan zijn dat je volgend jaar een nieuwe licentie hier opnieuw moet toevoegen.
+				</p>
+				<table class='rank table table-condensed table-hover table-striped'>
+					<tr>
+						<th></th>
+						<th>Type</th>
+						<th>Naam</th>
+						<th>Categorie</th>
+						<th>Club</th>
+					</tr>
+					<tr ng-repeat="linkable in results">
+						<td><input type="checkbox" ng-model="linkable.selected" /></td>
+						<td>{{linkable.type}}</td>
+						<td><a href="{{skater.href(linkable)}}" target="_blank">{{linkable.name}}</a></td>
+						<td>
+							<span ng-repeat="cat in linkable.categories">
+								{{cat.category}} ({{cat.season}}){{$last ? '' : ', '}}	
+							</span>
+						</td>
+						<td>{{linkable.club}}</td>
+					</tr>
+				</table>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal" ui-sref="^">Close</button>
+				<button type="button" class="btn btn-primary" ng-click="saveLinks()">Save changes</button>
+			</div>
+		</div><!-- /.modal-content -->
+	</div><!-- /.modal-dialog -->
+</div><!-- /.modal -->

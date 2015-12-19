@@ -87,9 +87,9 @@ function parsePersonTimes(data) {
 					distance: parseInt(cells[3])
 				};
 
-				let time = re.times.race.exec(cells[4]) || cells[4];
-				race.time = Array.isArray(time) ? time[2] : time;
-				race.osta_rid = Array.isArray(time) ? time[1] : undefined;
+				let time = re.times.race.exec(cells[4]);
+				race.time = time[2] || time[3] || undefined;
+				race.osta_rid = time[1] || undefined;
 
 				let tournament = re.times.tournament.exec(cells[5]) || cells[6];
 				race.tournament = Array.isArray(tournament) ? tournament[2] : tournament;

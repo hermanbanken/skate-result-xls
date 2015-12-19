@@ -59,8 +59,8 @@ function pad(num, size) {
 
 function formatTime(millis) {
   var us = millis % 1000,
-      ss = ((millis - us) / 1000) % 60000,
-      ms = ((millis - ss * 1000 - us) / 60000) % 60*60*1000;
+      ss = ((millis - us) / 1000) % 60,
+      ms = ((millis - ss * 1000 - us) / 60000) % 60;
 	return (ms > 0 ? (ms + ":") : "") + pad(ss,2) + "." + pad(us,3).substr(0,2);
 }
 

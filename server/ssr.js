@@ -76,7 +76,7 @@ const re = {
 		name: /<h1 class="underline">(.*)<\/h1>/ig,
 	},
 	rank: {
-		row: /<h2>(\d+)m (Ladies|Men)[^<]*(<span class="date">(.*)<\/span>)?<\/h2>|<tr.*?>(((.|\n)*?)class="ordinal"((.|\n)*?))<\/tr>/gi,
+		row: /<h2>(\d+)m (Ladies|Men|Mixed)[^<]*(<span class="date">(.*)<\/span>)?<\/h2>|<tr.*?>(((.|\n)*?)class="ordinal"((.|\n)*?))<\/tr>/gi,
 		cells: /<td class="ordinal">(\d+)<\/td>\s*<td class="name"><a href="index.php\?p=\d+&amp;s=(\d+)">(.*)<\/a><\/td>\s*<td class="age">(.*?)<\/td>\s*<td.*?<\/td>\s*<td class="time">(.*?)<\/td>\s*<td.*?>(.*)<\/td>/gim,
 		name: /<h1 class="underline">(.*)<\/h1>/ig,
 		meta: /<h2 class="compinfo">(.*)<span class="date">(.*?)<\/span>(<span class="source">Source: (.*?)<\/span>)?<\/h2>/gim
@@ -103,7 +103,7 @@ function parseTextualRanks(data) {
 		date = convertToISODate(date, "DD MMMM YYYY");
 	}
 
-	let re_row = /^((\d+)m (Ladies|Men).* - ([^\-\n]*)|(\d+)\s+(.*)\s(L..|M..)\s+([A-Z]{3})\s+([\d.,:]*)\s+([\sA-Z]*)?)$/mg
+	let re_row = /^((\d+)m (Ladies|Men|Mixed).*? ?-? ?([^\-\n]*)|(\d+)\s+(.*)\s(L..|M..)\s+([A-Z]{3})\s+([\d.,:]*)\s+([\sA-Z]*)?)$/mg
 	let matches = [];
 	var found, tournament_day_date, tournament_distance;
 	while (found = re_row.exec(text[1])) {

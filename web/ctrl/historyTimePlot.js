@@ -11,7 +11,7 @@ app.factory("historyTimePlot", function(skaterService) {
 	function formatSkateTime(millis) {
 		return skaterService.formatTime(millis);
 	}
-	
+
 	return function(data, nodeSelector, labelSelector, titleText) {
 		var xScale = new Plottable.Scales.Time();
 		var yScale = new Plottable.Scales.Linear();
@@ -20,20 +20,20 @@ app.factory("historyTimePlot", function(skaterService) {
 			.annotationsEnabled(true);
 		var yAxis = new Plottable.Axes.Numeric(yScale, "left")
 			.margin(5).formatter(formatSkateTime);
-			
+
 		var names = _.chain(data).groupBy(labelSelector).keys().value();
 
 		var fillColorScale, legend;
-		if(typeof labelSelector == 'function') {					
+		if(typeof labelSelector == 'function') {
 			fillColorScale = new Plottable.Scales.Color().domain(names);
 			legend = new Plottable.Components.Legend(fillColorScale);
 		} else {
 			fillColorScale = "#0052A5";
 		}
-		
+
 		var title = new Plottable.Components.TitleLabel(titleText, 0)
-			.yAlignment("top");	
-		
+			.yAlignment("top");
+
 		var timeline = new Plottable.Plots.Scatter()
 			.x(function(d) { return parseDate(d.date); }, xScale)
 			.y(function(d) { return parseSkateTime(d.time); }, yScale)
@@ -71,7 +71,12 @@ app.factory("historyTimePlot", function(skaterService) {
 				xAxis.annotatedTicks([]);
 				title.text("");
 			});
-		
-		timeline.addDataset(new Plottable.Dataset(data));
+
+		var times = data.map(d => d.time).map(parseSkateTime).sort((a,b) => a-b);
+		// Filter times that are larger than 110% of the 90 percentile time,
+		// to filter races where the skater has fallen
+		var p_80f1_1 = data.filter((d, i) => parseSkateTime(d.time) < 1.1 * times[Math.floor(times.length * .8)]);
+
+		timeline.addDataset(new Plottable.Dataset(p_80f1_1));
 	}
 });

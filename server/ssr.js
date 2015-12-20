@@ -95,7 +95,8 @@ function parseProfile(data) {
 	let birth = re.profile.birthday.exec(data);
 	return {
 		name: name && name[1] || undefined,
-		birthdate: birth && convertToISODate(birth[1], SSR_DATE_FORMAT) || undefined,
+		birthdate: birth && birth[1] && convertToISODate(birth[1], SSR_DATE_FORMAT) || undefined,
+		current_category: birth && birth[2] || undefined,
 	};
 }
 

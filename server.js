@@ -83,6 +83,7 @@ app.get('/api/skaters/find', function (req, res){
 			.then(ssr.parseProfile)
 			.then(profile => {
 				person.birthdate = profile.birthdate;
+				person.current_category = profile.current_category;
 				return person;
 			});
 	}

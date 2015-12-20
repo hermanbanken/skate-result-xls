@@ -1,6 +1,8 @@
 'use strict';
 var moment = require('moment');
 
+const SSR_DATE_FORMAT = "DD MMMM YYYY";
+
 function currentSeason() {
 	// minus 1 for stupid JavaScript dates
 	var MONTH_JUNE = 5;
@@ -81,13 +83,19 @@ const re = {
 		name: /<h1 class="underline">(.*)<\/h1>/ig,
 		meta: /<h2 class="compinfo">(.*)<span class="date">(.*?)<\/span>(<span class="source">Source: (.*?)<\/span>)?<\/h2>/gim
 	},
+	profile: {
+		birthday: /<span class="date">([^<]*) \((.{2,3})\)<\/span>/i
+	}
 }
 
 function parseProfile(data) {
 	re.rank.name.lastIndex = 0;
+	re.profile.birthday.lastIndex = 0;
 	let name = re.rank.name.exec(data);
+	let birth = re.profile.birthday.exec(data);
 	return {
-		name: name && name[1] || undefined
+		name: name && name[1] || undefined,
+		birthdate: birth && convertToISODate(birth[1], SSR_DATE_FORMAT) || undefined,
 	};
 }
 
@@ -99,8 +107,8 @@ function parseTextualRanks(data) {
 
 	if(date.indexOf("-") >= 0) {
 		date = undefined;
-	} else if(moment(date, "DD MMMM YYYY").isValid()) {
-		date = convertToISODate(date, "DD MMMM YYYY");
+	} else if(moment(date, SSR_DATE_FORMAT).isValid()) {
+		date = convertToISODate(date, SSR_DATE_FORMAT);
 	}
 
 	let re_row = /^((\d+)m (Ladies|Men|Mixed).*? ?-? ?([^\-\n]*)|(\d+)\s+(.*)\s(L..|M..)\s+([A-Z]{3})\s+([\d.,:]*)\s+([\sA-Z]*)?)$/mg
@@ -111,8 +119,8 @@ function parseTextualRanks(data) {
 		if(found[2]) {
 			tournament_distance = found[2];
 
-			if(moment(found[4], "DD MMMM YYYY").isValid())
-				tournament_day_date = convertToISODate(found[4], "DD MMMM YYYY");
+			if(moment(found[4], SSR_DATE_FORMAT).isValid())
+				tournament_day_date = convertToISODate(found[4], SSR_DATE_FORMAT);
 		}
 
 		if(!found[6])
@@ -153,7 +161,7 @@ function parseRanks(data){
 		date = false;
 	} else if(meta) {
 		// Single day
-		date = convertToISODate(meta[2], "DD MMMM YYYY");
+		date = convertToISODate(meta[2], SSR_DATE_FORMAT);
 	}
 
 	let ssr_venue = meta ? meta[1] : undefined;
@@ -167,7 +175,7 @@ function parseRanks(data){
 			// Row containing specific tournament info
 			if(found[1]) {
 				tournament_distance = parseInt(found[1]);
-				tournament_day_date = found[4] && convertToISODate(found[4], "DD MMMM YYYY");
+				tournament_day_date = found[4] && convertToISODate(found[4], SSR_DATE_FORMAT);
 				continue;
 			}
 			else {

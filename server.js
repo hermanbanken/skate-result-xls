@@ -76,10 +76,22 @@ app.get('/api/skaters/find', function (req, res){
 		.fetch(osta_url, { cache: { key: "osta."+id, postfix: '.osta.html', expired: cache.maxAge(10, 'd') } })
 		.then(osta.parseSearch);
 
+	function addProfileDetails(person) {
+		var url = ssrProfilePattern.replace(':sid', person.code);
+		return httpUtils
+			.fetch(url, { cache: { key: "ssr."+person.code, postfix: '.ssr.json', expired: cache.maxAge(10, 'd') } })
+			.then(ssr.parseProfile)
+			.then(profile => {
+				person.birthdate = profile.birthdate;
+				return person;
+			});
+	}
+
 	const ssr_url = ssrPattern.replace(':ln', req.query.last_name).replace(':fn', req.query.first_name);
 	const p_ssr = httpUtils
 		.fetch(ssr_url, { cache: { key: "ssr."+id, postfix: '.ssr.json', expired: cache.maxAge(10, 'd') } })
-	 	.then(ssr.parseSearch);
+	 	.then(ssr.parseSearch)
+		.then(list => q.all(list.map(addProfileDetails)));
 
 	q.all([p_osta, p_ssr])
  	  .then(result => res.json([].concat.apply([], result)))
@@ -135,7 +147,7 @@ app.get('/api/skaters/ssr/:sid', function (req, res){
 	if(req.query.competition) {
 		const c404 = "Competition not found";
 		const url = ssrCompetitonPattern.replace(":cid", req.query.competition);
-		
+
 		// Retrieve profile for name
 		var profile = httpUtils.fetch(fill(ssrProfilePattern), { dataType: 'html', cache: { key: "ssr.profile"+sid, postfix: '.ssr.profile.html', expired: cache.maxAge(365, 'd') } })
 			.then(ssr.parseProfile);

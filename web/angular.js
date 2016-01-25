@@ -86,7 +86,16 @@ app.config(function($locationProvider, $stateProvider, $urlRouterProvider, $reso
 	// Don't strip trailing slashes from calculated URLs
 	$resourceProvider.defaults.stripTrailingSlashes = false;
 });
-	
+
+app.run(function($rootScope){
+	$rootScope.$on('$stateChangeStart', function(event, toState, toParams, fromState, fromParams){
+		$(".page-loading .modal").modal('show');
+	});
+	$rootScope.$on('$stateChangeSuccess', function(event, toState, toParams, fromState, fromParams){
+		$(".page-loading .modal").modal('hide');
+	});
+});
+
 //$('<div class="progress"><div class="progress-bar progress-bar-striped active" role="progressbar" style="width: 100%"></div></div>')
 	
 app.controller('CompetitionListCtrl', ["$scope", "$rootScope", "$http", "competitions", function ($scope, $rootScope, $http, competitions) {

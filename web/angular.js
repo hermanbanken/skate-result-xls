@@ -102,7 +102,7 @@ app.controller('CompetitionListCtrl', ["$scope", "$rootScope", "$http", "competi
 	
 }]);
 
-app.controller('CompetitionDetailCtrl', function ($scope, $stateParams, result, competition, skaterService) {
+app.controller('CompetitionDetailCtrl', function ($scope, $state, $stateParams, result, competition, skaterService) {
 	$scope.result = result.map(function(part) {
 		// Find distinct list of passings distances available in this competition part
 		part.passings = _.chain(part.results).pluck("times").map(function(ts) { 
@@ -181,7 +181,23 @@ app.controller('CompetitionDetailCtrl', function ($scope, $stateParams, result, 
 		output.distances = rank.distances;
 		return output;
 	})
-	console.log(ranks)
+	console.log(ranks);
+	
+	// Reload
+	$scope.refresh = function() {
+		console.log("Deleting cache of competition", competition);
+		$scope.result = [];
+		$scope.ranks = [];
+		
+		competition.$delete(competition).then(function(){
+			console.log("Reloading competition", competition.id);
+			$state.transitionTo($state.current, $stateParams, {
+					reload: true,
+					inherit: false,
+					notify: true
+			});
+		});
+	};
 
 	$scope.ranks = ranks;	
 	$scope.competition = competition;

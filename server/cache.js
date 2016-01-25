@@ -67,4 +67,13 @@ function maxAge(count, type) {
 
 cache.maxAge = maxAge;
 
+cache.delete = function(key, options) {
+	if(!options) options = {};
+	
+	var hash = crypto.createHash('md5').update(key).digest('hex');
+	var file = 'cache/'+(options.prefix || "")+hash+(options.postfix || "");
+
+	return q.nfcall(fs.unlink, file);
+}
+
 module.exports = cache;

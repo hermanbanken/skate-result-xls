@@ -50,6 +50,19 @@ app.get('/api/competitions/:id', function (req, res) {
 	}).fail(onError.bind(res));
 });
 
+app.del('/api/competitions/:id', function (req, res) {
+	var id = req.params.id;
+	console.log("Deleting", id);
+	q
+		.all([
+			cache.delete("competition:"+id, { postfix: '.api.json' }),
+			cache.delete("results:"+id, { postfix: '.json' }),
+			cache.delete("xlsx:"+id, { postfix: '.xlsx' }),
+		])
+		.then(v => res.send(200))
+		.fail(onError.bind(res));
+});
+
 // Resulting times from a competition
 app.get('/api/competitions/:id/result', function (req, res) {
 	const id = req.params.id;

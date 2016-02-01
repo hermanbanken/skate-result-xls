@@ -76,6 +76,7 @@ function parseSeasonBests(data, addName) {
 const re = {
 	profile: {
 		name: /<h1 class="underline">(.*)<\/h1>/ig,
+		birthday: /<span class="date">([^<]*) \((.{2,3})\)<\/span>/i,
 	},
 	rank: {
 		row: /<h2>(\d+)m (Ladies|Men|Mixed)[^<]*(<span class="date">(.*)<\/span>)?<\/h2>|<tr.*?>(((.|\n)*?)class="ordinal"((.|\n)*?))<\/tr>/gi,
@@ -83,9 +84,6 @@ const re = {
 		name: /<h1 class="underline">(.*)<\/h1>/ig,
 		meta: /<h2 class="compinfo">(.*)<span class="date">(.*?)<\/span>(<span class="source">Source: (.*?)<\/span>)?<\/h2>/gim
 	},
-	profile: {
-		birthday: /<span class="date">([^<]*) \((.{2,3})\)<\/span>/i
-	}
 }
 
 function parseProfile(data) {

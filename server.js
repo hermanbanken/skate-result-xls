@@ -1,3 +1,5 @@
+'use strict';
+
 var express = require('express');
 var app = express();
 var q = require('q');
@@ -25,12 +27,25 @@ var ssrCompetitonsPattern = "http://speedskatingresults.com/api/json/skater_comp
 var ssrCompetitonPattern = "http://speedskatingresults.com/index.php?p=6&e=:cid"
 var ostaTimesPattern = "http://www.osta.nl/?pid=:pid&Seizoen=ALL&Afstand=&perAfstand=0"
 var ostaRitPattern = "http://www.osta.nl/rit.php?ID=:rid"
+var settingsPattern = base+"competitions/:id/distancecombinations"
 
 var competitionsPromise = () => fetch(base+"competitions", { dataType: 'json', cache: { key: "competitions", postfix: '.json', expired: cache.maxAge(5,'m') }});
 var competitionPromise = (id) => fetch(base+"competitions/:id".replace(":id", id), { dataType: 'json', cache: { key: "competition:"+id, postfix: '.api.json', expired: cache.maxAge(5,'m') } });
 
+function mergeSettingsWithResults(excel, settings) {
+	let distances = [].concat.apply([], settings.map(s => s.distances))
+	return excel.map(startSerie => {
+		let name = startSerie.name
+		let number = parseInt(name.split(" - ")[0])
+		let distance = distances.find(d => d.number == number)
+		distance.results = startSerie.results
+		distance.combinationId = settings.find(set => set.distances.find(d => d.id == distance.id)).id
+		return distance
+	})
+}
+
 function onError(e) {
-	this.send(500, e.stack.replace(/\n/g, "\n<br>").replace(/\s/g, "&nbsp;").replace(/\t/g, "&nbsp;&nbsp;&nbsp;&nbsp;"));
+	this.status(500).send(e.stack.replace(/\n/g, "\n<br>").replace(/\s/g, "&nbsp;").replace(/\t/g, "&nbsp;&nbsp;&nbsp;&nbsp;"));
 }
 
 // List of competitions
@@ -67,11 +82,20 @@ app.del('/api/competitions/:id', function (req, res) {
 app.get('/api/competitions/:id/result', function (req, res) {
 	const id = req.params.id;
 	cache("results:"+id, { postfix: '.json', expired: cache.maxAge(5,'m') }, () => {
-		return httpUtils
+		let excel = httpUtils
 			// Fetch XLSX
 			.fetch(excelPattern.replace(":id", id), { dataType: 'binary', cache: { encoding: 'binary', key: 'xlsx:'+id, postfix: '.xlsx'  } })
 			// Parse XLSX to result JSON output
 			.then(data => q.nfcall(handle, data.toString('binary'), {base64: false, checkCRC32: true}))
+
+		let settings = httpUtils
+			// Fetch actual settings
+			.fetch(settingsPattern.replace(":id", id))
+			.then(settings => JSON.parse(settings))
+		
+		return q.all([excel, settings])
+			// Merge settings and settings results
+			.spread(mergeSettingsWithResults)
 			// Prepare for json file storage
 			.then(data => new Buffer(JSON.stringify(data), 'utf8'));
 	})

@@ -141,17 +141,32 @@ app.controller('CompetitionDetailCtrl', function ($scope, $state, $stateParams, 
 			}).pluck("id").map(function (id) {
 				return { id: id, index: index };
 			}).value(),
-			distance: mostHave[0], certainty: mostHave[1] / part.results.length };
+			distance: part.value
+		};
 	});
 
-	// Merge buckets and count how many times each distance combinations exists
-	var buckets = _.chain(sums).pluck("buckets").flatten().groupBy("id").mapObject(function (list) {
-		return _.pluck(list, "index");
-	}).countBy(function (ds, user) {
-		return ds.join("-");
-	}).mapObject(function (count, id) {
-		return { count: count, id: id };
-	}).values().value();
+	var buckets = _.chain(sums).groupBy(function (i) {
+		return i.original.combinationId;
+	}).map(function (setting) {
+		var buckets = _.chain(setting).pluck("buckets").flatten().groupBy("id").mapObject(function (list) {
+			return _.pluck(list, "index");
+		}).countBy(function (ds, user) {
+			return ds.join("-");
+		}).mapObject(function (count, id) {
+			return { count: count, id: id };
+		}).values().value();
+		console.log(buckets);
+		return buckets;
+	}).flatten().value();
+
+	// // Merge buckets and count how many times each distance combinations exists
+	// var buckets = _.chain(sums).pluck("buckets").flatten().groupBy("id").mapObject(function(list){
+	// 	return _.pluck(list, "index");
+	// }).countBy(function(ds, user){
+	// 	return ds.join("-");
+	// }).mapObject(function(count, id){
+	// 	return { count, id };
+	// }).values().value();
 
 	// Find non-overlapping combinations. Warning: complex combinations are thus never returned
 	var combinations = _.chain(result).map(function (part, index) {

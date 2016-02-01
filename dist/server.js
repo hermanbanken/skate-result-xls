@@ -27,6 +27,7 @@ var ssrCompetitonsPattern = "http://speedskatingresults.com/api/json/skater_comp
 var ssrCompetitonPattern = "http://speedskatingresults.com/index.php?p=6&e=:cid";
 var ostaTimesPattern = "http://www.osta.nl/?pid=:pid&Seizoen=ALL&Afstand=&perAfstand=0";
 var ostaRitPattern = "http://www.osta.nl/rit.php?ID=:rid";
+var settingsPattern = base + "competitions/:id/distancecombinations";
 
 var competitionsPromise = function competitionsPromise() {
 	return fetch(base + "competitions", { dataType: 'json', cache: { key: "competitions", postfix: '.json', expired: cache.maxAge(5, 'm') } });
@@ -35,8 +36,28 @@ var competitionPromise = function competitionPromise(id) {
 	return fetch(base + "competitions/:id".replace(":id", id), { dataType: 'json', cache: { key: "competition:" + id, postfix: '.api.json', expired: cache.maxAge(5, 'm') } });
 };
 
+function mergeSettingsWithResults(excel, settings) {
+	var distances = [].concat.apply([], settings.map(function (s) {
+		return s.distances;
+	}));
+	return excel.map(function (startSerie) {
+		var name = startSerie.name;
+		var number = parseInt(name.split(" - ")[0]);
+		var distance = distances.find(function (d) {
+			return d.number == number;
+		});
+		distance.results = startSerie.results;
+		distance.combinationId = settings.find(function (set) {
+			return set.distances.find(function (d) {
+				return d.id == distance.id;
+			});
+		}).id;
+		return distance;
+	});
+}
+
 function onError(e) {
-	this.send(500, e.stack.replace(/\n/g, "\n<br>").replace(/\s/g, "&nbsp;").replace(/\t/g, "&nbsp;&nbsp;&nbsp;&nbsp;"));
+	this.status(500).send(e.stack.replace(/\n/g, "\n<br>").replace(/\s/g, "&nbsp;").replace(/\t/g, "&nbsp;&nbsp;&nbsp;&nbsp;"));
 }
 
 // List of competitions
@@ -69,13 +90,23 @@ app.del('/api/competitions/:id', function (req, res) {
 app.get('/api/competitions/:id/result', function (req, res) {
 	var id = req.params.id;
 	cache("results:" + id, { postfix: '.json', expired: cache.maxAge(5, 'm') }, function () {
-		return httpUtils
+		var excel = httpUtils
 		// Fetch XLSX
 		.fetch(excelPattern.replace(":id", id), { dataType: 'binary', cache: { encoding: 'binary', key: 'xlsx:' + id, postfix: '.xlsx' } })
 		// Parse XLSX to result JSON output
 		.then(function (data) {
 			return q.nfcall(handle, data.toString('binary'), { base64: false, checkCRC32: true });
-		})
+		});
+
+		var settings = httpUtils
+		// Fetch actual settings
+		.fetch(settingsPattern.replace(":id", id)).then(function (settings) {
+			return JSON.parse(settings);
+		});
+
+		return q.all([excel, settings])
+		// Merge settings and settings results
+		.spread(mergeSettingsWithResults)
 		// Prepare for json file storage
 		.then(function (data) {
 			return new Buffer(JSON.stringify(data), 'utf8');

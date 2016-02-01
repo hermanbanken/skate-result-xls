@@ -725,7 +725,7 @@ app.controller('SkatersLinkCtrl', function ($scope, $state, $stateParams, skater
 		if (updated.length != 1) alert("Something unexpected happened. Sorry :(");else $state.go("^");
 	};
 
-	$('.modal').modal({}).on('hidden.bs.modal', function (e) {
+	$('.page-modal .modal').modal({}).on('hidden.bs.modal', function (e) {
 		$state.go('^');
 	});
 });

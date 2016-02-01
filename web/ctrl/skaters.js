@@ -127,7 +127,7 @@ app.controller('SkatersLinkCtrl', function ($scope, $state, $stateParams, skater
 			$state.go("^");
 	};
 	
-	$('.modal').modal({}).on('hidden.bs.modal', function (e) {
+	$('.page-modal .modal').modal({}).on('hidden.bs.modal', function (e) {
 		$state.go('^');
 	});
 });

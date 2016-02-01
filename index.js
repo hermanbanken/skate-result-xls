@@ -31,7 +31,7 @@ if(require.main === module) {
 			});
 		}
 		check(args.slice(0), function(err, count) {
-			process.stderr.write(`Converted ${count} files\n`);
+			process.stderr.write("Converted "+count+" files\n");
 			process.exit(err ? 1 : 0);
 		});
 	} 

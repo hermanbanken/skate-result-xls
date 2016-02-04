@@ -68,71 +68,78 @@ INSCHRIJVEN.generaliseCompetitor = function (input) {
 	};
 };
 
-function API() {}
+function API(options) {
+	var fetch = this.fetch = options && options.fetch || httpUtils.fetch;
+
+	function Competition(data, optionalService) {
+		for (var n in data) {
+			if (n === 'id') continue;
+			if (!data.hasOwnProperty(n)) continue;
+			this[n] = data[n];
+		}
+
+		if (data.id) {
+			this.ids = optionalService ? toIdList(optionalService, data.id) : [data.id];
+		}
+
+		this.service = optionalService;
+	}
+
+	Competition.prototype.participants = function () {
+		var result = q.reject();
+
+		if (this.service === INSCHRIJVEN.name) {
+			var url = "https://inschrijven.schaatsen.nl/api/competitions/:id/competitors";
+			result = fetch(url.replace(":id", this.id)).then(function (settings) {
+				return _.chain(settings).pluck("competitors").flatten().value();
+			}).then(function (ps) {
+				return ps.map(INSCHRIJVEN.generaliseCompetitor);
+			});
+		}
+
+		return result;
+	};
+
+	/**
+  * List all competitions
+  *
+  * @param service to retrieve from
+  * @param cursor where to start retrieval
+  * @return { results: [], next: Cursor }
+  */
+	Competition.list = function (service, optionalCursor) {
+		if (typeof service === 'string') {
+			service = new API().listServices().find(function (s) {
+				return s.name === service;
+			});
+		}
+
+		var data = q.reject();
+		switch (service.name) {
+			case INSCHRIJVEN.name:
+				var url = "https://inschrijven.schaatsen.nl/api/competitions";
+				data = fetch(url).then(function (d) {
+					return JSON.parse(d);
+				}).then(function (list) {
+					return {
+						count: list.length,
+						results: list.map(function (c) {
+							return new Competition(c, service.name);
+						}),
+						next: false
+					};
+				});
+				break;
+		}
+
+		return data;
+	};
+
+	this.Competition = Competition;
+}
 
 API.prototype.listServices = function () {
 	return [SSR, OSTA, INSCHRIJVEN];
 };
 
-function Competition(data, optionalService) {
-	for (var n in data) {
-		if (!data.hasOwnProperty(n)) continue;
-		this[n] = data[n];
-	}
-	this.service = optionalService;
-}
-
-Competition.prototype.participants = function () {
-	var result = q.reject();
-
-	if (this.service === INSCHRIJVEN.name) {
-		var url = "https://inschrijven.schaatsen.nl/api/competitions/:id/competitors";
-		result = httpUtils.fetch(url.replace(":id", this.id)).then(function (d) {
-			return JSON.parse(d);
-		}).then(function (settings) {
-			return _.chain(settings).pluck("competitors").flatten().value();
-		}).then(function (ps) {
-			return ps.map(INSCHRIJVEN.generaliseCompetitor);
-		});
-	}
-
-	return result;
-};
-
-/**
- * List all competitions
- *
- * @param service to retrieve from
- * @param cursor where to start retrieval
- * @return { results: [], next: Cursor }
- */
-Competition.list = function (service, optionalCursor) {
-	if (typeof service === 'string') {
-		service = new API().listServices().find(function (s) {
-			return s.name === service;
-		});
-	}
-
-	var data = q.reject();
-	switch (service.name) {
-		case INSCHRIJVEN.name:
-			var url = "https://inschrijven.schaatsen.nl/api/competitions";
-			data = httpUtils.fetch(url).then(function (d) {
-				return JSON.parse(d);
-			}).then(function (list) {
-				return {
-					count: list.length,
-					results: list.map(function (c) {
-						return new Competition(c, service.name);
-					}),
-					next: false
-				};
-			});
-			break;
-	}
-
-	return data;
-};
-
-API.Competition = Competition;
 module.exports = API;

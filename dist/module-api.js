@@ -37,9 +37,10 @@ var competitionPromise = function competitionPromise(id) {
 };
 
 function toIdList(service, id) {
-	var obj = {};
-	obj[typeof service == 'string' ? service : service.name] = id;
-	return [obj];
+	return [{
+		service: typeof service == 'string' ? service : service.name,
+		id: id
+	}];
 }
 
 function SSR() {}
@@ -90,14 +91,23 @@ function API(options) {
 
 		if (this.service === INSCHRIJVEN.name) {
 			var url = "https://inschrijven.schaatsen.nl/api/competitions/:id/competitors";
-			result = fetch(url.replace(":id", this.id)).then(function (settings) {
-				return _.chain(settings).pluck("competitors").flatten().value();
+			result = fetch(url.replace(":id", this.serviceId(INSCHRIJVEN.name))).then(function (d) {
+				return JSON.parse(d);
+			}).then(function (settings) {
+				return _.chain(settings).pluck("competitors").flatten(true).value();
 			}).then(function (ps) {
 				return ps.map(INSCHRIJVEN.generaliseCompetitor);
 			});
 		}
 
 		return result;
+	};
+
+	Competition.prototype.serviceId = function (service) {
+		var item = this.ids.find(function (id) {
+			return id.service === service;
+		});
+		return item && item.id || item;
 	};
 
 	/**

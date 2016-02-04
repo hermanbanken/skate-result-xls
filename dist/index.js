@@ -64,6 +64,7 @@ if (require.main === module) {
 else {
 		module.exports = {
 			handle: require("./convert").handle,
-			examples: require("./examples")
+			examples: require("./examples"),
+			api: require("./module-api")
 		};
 	}

@@ -23,6 +23,7 @@ gulp.task("build-module", function() {
 		"stdin.js", 
 		"server.js",
 		"examples.js",
+		"module-api.js",
 		])
     .pipe(babel())
     .pipe(gulp.dest("dist"));

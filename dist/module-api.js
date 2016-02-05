@@ -60,6 +60,7 @@ INSCHRIJVEN.generaliseCompetitor = function (input) {
 		gender: ['m', 'f', 'o'][input.competitor.gender],
 		ids: toIdList(INSCHRIJVEN.name, input.competitor.id),
 		licenseKey: input.competitor.licenseKey,
+		licenseDiscipline: input.competitor.licenseDiscipline,
 		start: {
 			number: input.competitor.startNumber,
 			status: input.status,
@@ -71,6 +72,41 @@ INSCHRIJVEN.generaliseCompetitor = function (input) {
 
 function API(options) {
 	var fetch = this.fetch = options && options.fetch || httpUtils.fetch;
+
+	function Competitor(data, optionalService) {
+		for (var n in data) {
+			if (n === 'id') continue;
+			if (!data.hasOwnProperty(n)) continue;
+			this[n] = data[n];
+		}
+
+		if (this.licenseDiscipline && this.licenseKey) {
+			this.licenses = [{
+				licenseDiscipline: this.licenseDiscipline,
+				licenseKey: this.licenseKey
+			}];
+		}
+
+		this.service = optionalService;
+	}
+
+	Competitor.lookup = function (service, data) {
+		var result = q.reject();
+
+		if (service === INSCHRIJVEN.name) {
+			var url = "https://inschrijven.schaatsen.nl/api/licenses/KNSB/:discipline/:key";
+			if (data.licenseKey && data.licenseDiscipline) {
+				var _url = url.replace(":key", data.licenseKey).replace(":discipline", data.licenseDiscipline);
+				result = fetch(_url).then(function (d) {
+					return JSON.parse(d);
+				}).then(function (d) {
+					return new Competitor(d, INSCHRIJVEN.name);
+				});
+			}
+		}
+
+		return result;
+	};
 
 	function Competition(data, optionalService) {
 		for (var n in data) {
@@ -145,6 +181,7 @@ function API(options) {
 		return data;
 	};
 
+	this.Competitor = Competitor;
 	this.Competition = Competition;
 }
 

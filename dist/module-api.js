@@ -100,7 +100,7 @@ function API(options) {
 				result = fetch(_url).then(function (d) {
 					return JSON.parse(d);
 				}).then(function (d) {
-					return new Competitor(d, INSCHRIJVEN.name);
+					return new Competitor(_.extend({}, data, d), INSCHRIJVEN.name);
 				});
 			}
 		}

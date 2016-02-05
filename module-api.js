@@ -115,7 +115,7 @@ function API(options) {
 				let _url = url.replace(":key", data.licenseKey).replace(":discipline", data.licenseDiscipline);
 				result = fetch(_url)
 					.then(d => JSON.parse(d))
-					.then(d => new Competitor(d, INSCHRIJVEN.name));
+					.then(d => new Competitor(_.extend({}, data, d), INSCHRIJVEN.name));
 			}
 		}
 

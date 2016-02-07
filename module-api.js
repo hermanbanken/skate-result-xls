@@ -99,11 +99,40 @@ function API(options) {
 		if(this.licenseDiscipline && this.licenseKey) {
 			this.licenses = [{
 				licenseDiscipline: this.licenseDiscipline,
-				licenseKey: this.licenseKey
+				licenseKey: this.licenseKey,
+				validFrom: this.validFrom,
+				validTo: this.validTo,
+				flags: this.flags,
+
+				season: this.season,
+				category: this.category,
+				sponsor: this.sponsor,
+				club: this.sponsor,
+				venueCode: this.venueCode,
+				transponder1: this.transponder1,
+				transponder2: this.transponder2,
+				number: this.number,
+				numberPrefix: this.numberPrefix,
 			}];
+			delete this.licenseDiscipline;
+			delete this.licenseKey;
+			delete this.validFrom;
+			delete this.validTo;
+			delete this.key;
+			delete this.flags;
+
+			delete this.season;
+			delete this.category;
+			delete this.sponsor;
+			delete this.club;
+			delete this.venueCode;
+			delete this.transponder1;
+			delete this.transponder2;
+			delete this.number;
+			delete this.numberPrefix;
 		}
 
-		this.service = optionalService;
+		this.service = optionalService || this.service;
 	}
 
 	Competitor.lookup = function (service, data){

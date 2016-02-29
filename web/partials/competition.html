@@ -1,11 +1,33 @@
 <div class="container-fluid body-content">
 	<div class="row">
+		<div class="col-sm-12">
+			<h3>
+				{{ competition.name }}
+				<a href="/api/competitions/{{competition.id}}/result" class="small">[api]</a>
+			</h3>
+		</div>
+	</div>
+	<div class="row">
 		<div class="col-sm-7">
-			<h3>{{ competition.name }} <a href="/api/competitions/{{competition.id}}/result" class="small">[api]</a></h3>
+			<p>Spring naar rituitslag:</p>
+			<ul>
+				<li ng-repeat="part in result"><a ng-click="jump('result-'+part.id)">{{part.name}}</a></li>
+			</ul>
+			</div>
+			<div class="col-sm-5">
+			<p>Spring naar klassement:</p>
+			<ul>
+				<li ng-repeat="rank in ranks"><a ng-click="jump('rank-'+rank.id)">{{rank.name}}</a></li>
+			</ul>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-sm-7">
+			<h3>Rituitslag</h3>
 
 			<table class='group table table-condensed table-hover table-striped' ng-repeat="part in result">
 				<tr>
-					<th colspan=4>{{ part.name }}</th>
+					<th colspan=4 id="result-{{ part.id }}">{{ part.name }}</th>
 					<td ng-repeat="distance in part.passings">{{distance}}</td>
 				</tr>
 				<tr ng-repeat="user in part.results">
@@ -22,16 +44,16 @@
 			<table class='rank table table-condensed table-hover table-striped' ng-repeat="rank in ranks">
 				<tr>
 					<th>#</th>
-					<th colspan=2>Deelnemer</th>
+					<th colspan=2 id="rank-{{ rank.id }}">{{ rank.name }}</th>
 					<th ng-repeat="d in rank.distances">{{ d[1] }}</th>
-					<th>Totaal</th>					
+					<th ng-show="rank.hasTotal">Totaal</th>
 				</tr>
 				<tr ng-repeat="(i, row) in rank | orderBy:['-distances','points']">
 					<td>{{ rank.distances.length == row.distances ? i+1 : "" }}</td>
 					<td>{{ row.name }}</td>
 					<td>{{ row.category }}</td>
 					<th ng-repeat="d in rank.distances">{{ row.cols[d[0]].ok ? row.cols[d[0]].time : '-' }}</th>
-					<td>{{ (row.points / 1000).toFixed(3) }}</td>
+					<td ng-show="rank.hasTotal">{{ (row.points / 1000).toFixed(3) }}</td>
 				</tr>
 			</table>
 		</div>

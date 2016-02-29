@@ -112,6 +112,13 @@ app.controller('CompetitionListCtrl', ["$scope", "$rootScope", "$http", "competi
 }]);
 
 app.controller('CompetitionDetailCtrl', function ($scope, $state, $stateParams, result, competition, skaterService) {
+	$scope.jump = function(id){
+		$("#"+id)[0].scrollIntoView()
+		document.body.scrollTop -= $(".navbar").height() + 10;
+	}
+	
+	$scope.competition = competition;
+	
 	$scope.result = result.map(function(part) {
 		// Find distinct list of passings distances available in this competition part
 		part.passings = _.chain(part.results).pluck("times").map(function(ts) { 
@@ -120,81 +127,81 @@ app.controller('CompetitionDetailCtrl', function ($scope, $state, $stateParams, 
 		return part;
 	});
 	
-	// Compute
-	var sums = result.map(function(part, index){
-		// Per user an id and a distance
-		var pilars = part.results.map(function(user){
-			var id = user.name + ":" + user.category;
-			var last = _.last(user.times);
-			var distance = last[0].replace('m', "");
-			var time = last[1];
-			return { id, distance, time };
-		});
-		
-		// Most probable distance
-		var distance = _.chain(pilars).countBy("distance").value();
-		var mostHave = _.chain(distance).pairs().max(function(p){ return p[1]; }).value();
-		
-		// Return bucket of [id : index] pairs and probability
-		return {
-			name: part.name, index,
-			original: part,
-			simple: pilars,
-			buckets: _.chain(pilars).filter(u => u.distance == mostHave[0]).pluck("id").map(function(id){ return { id, index }; }).value(),
-			distance: part.value
-		};
-	});
-
-	var buckets = _.chain(sums).groupBy(i => i.original.combinationId).map(setting => {
-		// // Merge buckets and count how many times each distance combinations exists
-		var buckets = _.chain(setting).pluck("buckets").flatten().groupBy("id").mapObject(function(list){
-			return _.pluck(list, "index");
-		}).countBy(function(ds, user){
-			return ds.join("-");
-		}).mapObject(function(count, id){
-			return { count, id };
-		}).values().value();
-		return buckets;
-	}).flatten().value();
+	function firstStart(dists) {
+		return _.chain(dists).pluck("number").min().value();
+	}
 	
-	// Find non-overlapping combinations. Warning: complex combinations are thus never returned
-	var combinations = _.chain(result).map(function(part, index){
-		var combination = _.chain(buckets)
-			.filter(function(b){ return b.id.split("-").indexOf(index+"") >= 0 })
-			.max(function(b){ return b.count; }).value().id;
-		return combination;
-	}).uniq().value();
-	// console.log(competition, combinations);
-
-	// Calculate points per user
-	var ranks = combinations.map(c => {
-		var distances = c.split("-").map(d => parseInt(d));
-		var rank = distances.map(i => sums[i]).map((list,listIndex) => {
-			var d = parseInt(list.distance);
-			return list.simple.map(user => ({
-				id: user.id,
-				col: { index: listIndex, distance: list.distance, time: user.time, ok: user.distance == list.distance },
-				points:  (skaterService.parseTime(user.time, true) / d * 500), 
-				ok: user.distance == list.distance
+	/**
+	 * Convert single skaters result line to reducable object
+	 */
+	function buildStart(distance, distanceQuantity, index, start) {		
+		let last = _.last(start.times)
+		let time = last[1]
+		let points = (skaterService.parseTime(time, true) / distance * 500)	
+		return {
+			index,
+			distance,
+			time,
+			points,
+			id: start.name + ":" + start.category, 
+			name: start.name,
+			category: start.category,
+			ok: distance == parseInt(last[0].replace('m', "")) || distanceQuantity !== 0,
+		}
+	}
+	
+	function sumPoints(starts) {
+		return _.chain(starts)
+			.filter(u => u.ok)
+			.pluck("points")
+			.reduce((s,n) => s+n, 0)
+			.value();
+	}
+	
+	/**
+	 * Simplify ranking column data
+	 */
+	function simplifyCols(starts) {
+		let simple = starts.map(s => _.pick(s, "index", "distance", "time", "ok"));
+		return _.indexBy(simple, o => o.index + "");
+	}
+	
+	/**
+	 * Maps lists of distance results to rankings
+	 */
+	function buildRank(dists) {
+		var rank = _.chain(dists)
+		  // make distance result rows groupable 
+			.map((dist, index) => dist.results.map(buildStart.bind(null, dist.value, dist.valueQuantity, index)))
+			.flatten()
+			.groupBy("id")
+			.values()
+			// create ranking row
+			.map(starts => ({
+				category: starts[0].category,
+				cols: simplifyCols(starts),
+				distances: starts.filter(s => s.ok).length,
+				name: starts[0].name,
+				points: sumPoints(starts),
 			}))
-		});
-		rank.distances = distances.map(i => sums[i]).map((list,i) => [i,parseInt(list.distance)]).sort();
+			.value();
+		rank.distances = _.chain(dists).pluck("value").pairs().value();
+		rank.name = _.pluck(dists, "combinationName")[0];
+		rank.id = _.pluck(dists, "combinationId")[0];
+		rank.hasTotal = _.every(dists, d => d.valueQuantity === 0);
 		return rank;
-	}).map(rank => {
-		var output = _.chain(rank).flatten().groupBy("id").pairs().map(pair => {
-			var list = pair[1];
-			return {
-				name: pair[0].split(":")[0],
-				category: pair[0].split(":")[1],
-				cols: _.chain(list).pluck("col").indexBy("index").value(),
-				points: _.chain(list).filter(u => u.ok).pluck("points").reduce((s,n) => s+n, 0).value(),
-				distances: list.filter(u => u.ok).length
-			}
-		}).value();
-		output.distances = rank.distances;
-		return output;
-	})
-	console.log(ranks);
+	}
+
+	// Create a ranking per combination
+	var ranks = _.chain(result)
+		.groupBy("combinationId")
+		.values()
+		.sortBy(firstStart)
+		.map(buildRank)
+		.value();
+	
+	console.log("ranks", ranks)
+	window.ranks = ranks;
 	
 	// Reload
 	$scope.refresh = function() {

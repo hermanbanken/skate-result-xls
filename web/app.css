@@ -32,3 +32,15 @@ body {
 .td-icon {
 	width: 1.7em;
 }
+
+@media (min-width: 768px) {
+	.navbar .navbar-form select {
+		width: 100px;
+	}
+}
+
+@media (min-width: 992px) {
+	.navbar .navbar-form select {
+		width: auto;
+	}	
+}

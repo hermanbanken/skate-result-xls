@@ -75,7 +75,22 @@ function jsonApiPromise(url, cacheKey, cacheOptions) {
 	}).then(body => { return JSON.parse(body); });
 }
 
+function _onError(args, e) {
+	console.error("Exception in HTTP.fetch");
+	console.error(e);
+	console.error("Params: "+JSON.stringify(args));
+	throw e;
+}
+
 function fetch(url, options) {
+	try {
+		return _fetch.apply(this, arguments).catch(_onError.bind(null, arguments));
+	} catch (e) {
+		_onError(arguments, e);
+	}
+}
+
+function _fetch(url, options) {
 	if(typeof url == 'object'){
 			options = url;
 	}

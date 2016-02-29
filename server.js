@@ -39,13 +39,17 @@ function mergeSettingsWithResults(excel, settings) {
 		let number = parseInt(name.split(" - ")[0])
 		let distance = distances.find(d => d.number == number)
 		distance.results = startSerie.results
-		distance.combinationId = settings.find(set => set.distances.find(d => d.id == distance.id)).id
+		let combination = settings.find(set => set.distances.find(d => d.id == distance.id))
+		distance.combinationId = combination.id
+		distance.combinationName = combination.name
 		return distance
 	})
 }
 
 function onError(e) {
-	this.status(500).send(e.stack.replace(/\n/g, "\n<br>").replace(/\s/g, "&nbsp;").replace(/\t/g, "&nbsp;&nbsp;&nbsp;&nbsp;"));
+	let stack = e.stack.replace(/\n/g, "\n<br>").replace(/\s/g, "&nbsp;").replace(/\t/g, "&nbsp;&nbsp;&nbsp;&nbsp;");
+	this.set('Content-Type', 'text/html')
+	this.status(500).send(stack);
 }
 
 // List of competitions

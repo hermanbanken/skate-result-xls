@@ -1,5 +1,7 @@
 'use strict';
 
+var OLD_MINDAYS = -9;
+
 angular.module('skateApp.services', []).factory('Competition', ['$resource', function ($resource) {
 	return $resource('/api/competitions/:id', null);
 }]).factory('CompetitionResult', ['$resource', function ($resource) {
@@ -14,6 +16,14 @@ var app = angular.module('skateApp', ['ngResource', 'ngRoute', 'ui.router', 'ang
 	// so that you can access them from any scope within your applications.
 	$rootScope.$state = $state;
 	$rootScope.$stateParams = $stateParams;
+});
+
+app.filter('hideOld', function () {
+	return function (inputArray, filter) {
+		return inputArray.filter(function (c) {
+			return filter.showOld || moment(c.starts).isAfter(moment().add(OLD_MINDAYS, 'day'));
+		});
+	};
 });
 
 app.controller('appCtrl', ["$scope", "$rootScope", "$http", function ($scope, $rootScope, $http) {
@@ -92,7 +102,7 @@ app.run(function ($rootScope) {
 
 //$('<div class="progress"><div class="progress-bar progress-bar-striped active" role="progressbar" style="width: 100%"></div></div>')
 
-app.controller('CompetitionListCtrl', ["$scope", "$rootScope", "$http", "competitions", function ($scope, $rootScope, $http, competitions) {
+app.controller('CompetitionListCtrl', ["$scope", "$rootScope", "$http", "competitions", "$filter", function ($scope, $rootScope, $http, competitions, $filter) {
 
 	// Group by availability state
 	$scope.competitions = _.map(_.groupBy(competitions, function (c) {
@@ -101,6 +111,21 @@ app.controller('CompetitionListCtrl', ["$scope", "$rootScope", "$http", "competi
 	}), function (list, key) {
 		return { state: key, value: list };
 	});
+
+	$scope.showOld = function () {
+		$rootScope.filter.showOld = true;
+	};
+	$scope.countOlder = function (cs) {
+		cs = cs.filter(function (c) {
+			return c.discipline == $scope.filter.discipline;
+		}).filter(function (c) {
+			return c.venue && c.venue.code == $scope.filter.venue;
+		});
+
+		return cs.filter(function (c) {
+			return moment(c.starts).isBefore(moment().add(OLD_MINDAYS, 'day'));
+		}).length;
+	};
 }]);
 
 app.controller('CompetitionDetailCtrl', function ($scope, $state, $stateParams, result, competition, skaterService) {

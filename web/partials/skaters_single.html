@@ -8,6 +8,35 @@
 			</div>
 		</div>
 	</div>
+	<div class="row">
+		<div class="col-md-12">
+			<h2>Persoonlijke records</h2>
+			<ul class="nav nav-tabs" role="tablist">
+				<li ng-repeat="(year, _prs) in prs" ng-class="{ 'active': $last }"><a data-target="#tab{{year}}" data-toggle="tab">
+					{{year}}
+					<span class="badge">{{_prs.length}}</span>
+				</a></li>
+			</ul>
+			<div class="tab-content">
+				<div ng-repeat="(year, _prs) in prs" class="tab-pane" ng-class="{ 'active': $last }" id="tab{{year}}">
+					<table class="table table-condensed table-striped table-bordered">
+						<tr><th></th><th>Datum</th><th>Afstand</th><th>Tijd</th></tr>
+						<tr ng-repeat="pr in _prs">
+							<td>{{$index+1}}</td>
+							<td>{{pr.date}}</td>
+							<td>{{pr.distance}}</td>
+							<td>{{pr.time}}</td>
+						</tr>
+					</table>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-md-12">
+			<h2>Grafieken met eindtijden en rondetijden</h2>
+		</div>
+	</div>
 	<div class="row darker">
 		<div class="col-md-6">
 			<svg class="graph" id="graph-500-history" height=300 data-distance="500" data-type="history"></svg>

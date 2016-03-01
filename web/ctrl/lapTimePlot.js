@@ -20,6 +20,9 @@ app.factory("lapTimePlot", function(skaterService) {
 	}
 
 	return function(data, nodeSelector, labelSelector, titleText) {
+		if(!data.length)
+			return;
+	
 		var xScale = new Plottable.Scales.Category();
 		var yScale = new Plottable.Scales.Linear();
 		var xAxis = new Plottable.Axes.Category(xScale, "bottom")

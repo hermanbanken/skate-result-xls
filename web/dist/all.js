@@ -341,6 +341,8 @@ app.factory("lapTimePlot", function (skaterService) {
 	}
 
 	return function (data, nodeSelector, labelSelector, titleText) {
+		if (!data.length) return;
+
 		var xScale = new Plottable.Scales.Category();
 		var yScale = new Plottable.Scales.Linear();
 		var xAxis = new Plottable.Axes.Category(xScale, "bottom").margin(5).annotatedTicks(lapDistances(data[0].distance)).annotationsEnabled(false);
@@ -668,6 +670,12 @@ app.controller('SkatersCtrl', function ($scope, $rootScope, $stateParams, skater
 	};
 });
 
+function seasonStart(date) {
+	var $d = moment(date);
+	if ($d.get('month') + 1 <= 6) $d = $d.subtract(6, 'month');
+	return $d.get('year');
+}
+
 app.controller('SkatersSingleCtrl', function ($scope, $rootScope, $stateParams, skaterService, RaceService, historyTimePlot, lapTimePlot) {
 	$stateParams.birthdate = new Date($stateParams.birthdate);
 	$scope.skater = skaterService.skaters.find(function (skater) {
@@ -689,7 +697,13 @@ app.controller('SkatersSingleCtrl', function ($scope, $rootScope, $stateParams, 
 				return match.name;
 			});
 		});
-		console.log("result", result);
+		var prs = _.chain(result.times).filter(function (t) {
+			return t.ssr_records && t.ssr_records.indexOf("PR") >= 0;
+		}).groupBy(function (t) {
+			return seasonStart(t.date);
+		}).value();
+		$scope.prs = window.prs = prs;
+		console.log("window.result", result, "window.prs", prs);
 	}, function (e) {
 		console.log("error", e);
 	}, function (n) {

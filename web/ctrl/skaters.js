@@ -1,3 +1,5 @@
+'use strict';
+
 app.config(function($locationProvider, $stateProvider) {
 	// Router
 	var router = $stateProvider;
@@ -73,6 +75,13 @@ app.controller('SkatersCtrl', function ($scope, $rootScope, $stateParams, skater
 	}
 });
 
+function seasonStart(date) {
+	let $d = moment(date);
+	if($d.get('month') + 1 <= 6)
+		$d = $d.subtract(6, 'month');
+	return $d.get('year');
+}
+
 app.controller('SkatersSingleCtrl', function ($scope, $rootScope, $stateParams, skaterService, RaceService, historyTimePlot, lapTimePlot) {
 	$stateParams.birthdate = new Date($stateParams.birthdate);
 	$scope.skater = skaterService.skaters.find(skater => skater.equals($stateParams, true));
@@ -85,7 +94,12 @@ app.controller('SkatersSingleCtrl', function ($scope, $rootScope, $stateParams, 
 			if(distance != 500)
 				lapTimePlot(result.times.filter(m => m.distance == distance), ".graph[data-type='laps'][data-distance='"+distance+"']", match => match.name);
 		})
-		console.log("result", result);
+		var prs = _.chain(result.times)
+			.filter(t => t.ssr_records && (t.ssr_records.indexOf("PR") >= 0))
+			.groupBy(t => seasonStart(t.date))
+			.value();
+		$scope.prs = window.prs = prs;
+		console.log("window.result", result, "window.prs", prs);
 	}, e => {
 		console.log("error", e);
 	}, n => {

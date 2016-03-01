@@ -69,7 +69,7 @@ app.get('/api/competitions/:id', function (req, res) {
 	}).fail(onError.bind(res));
 });
 
-app.del('/api/competitions/:id', function (req, res) {
+app.delete('/api/competitions/:id', function (req, res) {
 	var id = req.params.id;
 	console.log("Deleting", id);
 	q

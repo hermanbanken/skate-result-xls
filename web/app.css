@@ -44,3 +44,12 @@ body {
 		width: auto;
 	}	
 }
+
+@media print {
+	.no-print {
+		display: none;
+	}
+	.page-break {
+		page-break-before: always;
+	}
+}

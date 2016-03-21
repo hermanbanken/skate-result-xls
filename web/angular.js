@@ -224,6 +224,8 @@ app.controller('CompetitionDetailCtrl', function ($scope, $state, $stateParams, 
 	console.log("ranks", ranks)
 	window.ranks = ranks;
 	
+	$scope.wideView = !result.every(r => r.valueQuantity != 0 || r.value <= 3000);
+	
 	// Reload
 	$scope.refresh = function() {
 		console.log("Deleting cache of competition", competition);

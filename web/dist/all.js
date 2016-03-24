@@ -689,6 +689,8 @@ app.controller('SkatersSingleCtrl', function ($scope, $rootScope, $stateParams, 
 	$scope.progress = 0;
 	$scope.times = RaceService.get($scope.skater).then(function (result) {
 		window.result = result;
+
+		// Show Plots
 		[500, 1000, 1500, 3000, 5000, 10000].forEach(function (distance) {
 			historyTimePlot(result.times.filter(function (m) {
 				return m.distance == distance;
@@ -701,11 +703,21 @@ app.controller('SkatersSingleCtrl', function ($scope, $rootScope, $stateParams, 
 				return match.name;
 			});
 		});
-		var prs = _.chain(result.times).filter(function (t) {
-			return t.ssr_records && t.ssr_records.indexOf("PR") >= 0;
-		}).groupBy(function (t) {
+
+		// Show PRs
+		var prs = _.chain(result.times).groupBy("distance").map(function (times) {
+			return _.chain(times).sortBy("date").reduce(function (memo, time) {
+				var current = parseTime(time.time);
+				if (memo.best == null || memo.best > current) {
+					memo.prs.push(time);
+					memo.best = current;
+				}
+				return memo;
+			}, { best: null, prs: [] }).value();
+		}).pluck("prs").flatten().sortBy("date").groupBy(function (t) {
 			return seasonStart(t.date);
 		}).value();
+
 		$scope.prs = window.prs = prs;
 		console.log("window.result", result, "window.prs", prs);
 	}, function (e) {

@@ -86,8 +86,8 @@ app.delete('/api/competitions/:id', function (req, res) {
 		.fail(onError.bind(res));
 });
 
-function parsedResults(id) {
-	return cache("results:"+id, { postfix: '.json', expired: cache.maxAge(5,'m') }, () => {
+function parsedResults(id, expiry) {
+	return cache("results:"+id, { postfix: '.json', expired: expiry }, () => {
 		let excel = httpUtils
 			// Fetch XLSX
 			.fetch(excelPattern.replace(":id", id), { dataType: 'binary', cache: { encoding: 'binary', key: 'xlsx:'+id, postfix: '.xlsx'  } })
@@ -111,7 +111,7 @@ function parsedResults(id) {
 // Resulting times from a competition
 app.get('/api/competitions/:id/result', function (req, res) {
 	const id = req.params.id;
-	parsedResults(id)
+	parsedResults(id, cache.maxAge(30,'m'))
 	.then(times => res.json(times))
 	.fail(onError.bind(res));
 });
@@ -282,7 +282,7 @@ app.get('/api/skaters/schaatsen/:licenseKey', function(req, res) {
 	
 	if(req.query.competition && req.query.name) {
 		const name = req.query.name;
-		parsedResults(req.query.competition)
+		parsedResults(req.query.competition, cache.maxAge(300,'d'))
 			.then(settings => settings
 				.map(setting => {
 					let r = setting.results.find(r => r.name == name)

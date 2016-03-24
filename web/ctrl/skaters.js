@@ -89,15 +89,34 @@ app.controller('SkatersSingleCtrl', function ($scope, $rootScope, $stateParams, 
 	$scope.progress = 0;
 	$scope.times = RaceService.get($scope.skater).then(result => {
 		window.result = result;
+
+		// Show Plots
 		[500, 1000, 1500, 3000, 5000, 10000].forEach(distance => {
 			historyTimePlot(result.times.filter(m => m.distance == distance), ".graph[data-type='history'][data-distance='"+distance+"']", match => match.name);
 			if(distance != 500)
 				lapTimePlot(result.times.filter(m => m.distance == distance), ".graph[data-type='laps'][data-distance='"+distance+"']", match => match.name);
 		})
+		
+		// Show PRs
 		var prs = _.chain(result.times)
-			.filter(t => t.ssr_records && (t.ssr_records.indexOf("PR") >= 0))
+			.groupBy("distance")
+			.map(times => _.chain(times)
+				.sortBy("date")
+				.reduce((memo, time) => {
+					let current = parseTime(time.time);
+					if(memo.best == null || memo.best > current) {
+						memo.prs.push(time);
+						memo.best = current;
+					}
+					return memo;
+				}, { best: null, prs: [] })
+				.value())
+			.pluck("prs")
+			.flatten()
+			.sortBy("date")
 			.groupBy(t => seasonStart(t.date))
 			.value();
+
 		$scope.prs = window.prs = prs;
 		console.log("window.result", result, "window.prs", prs);
 	}, e => {

@@ -279,11 +279,14 @@ app.get('/api/skaters/ssr/:sid', function (req, res){
 
 app.get('/api/skaters/schaatsen/:licenseKey', function(req, res) {
 	const key = req.params.licenseKey;
-	
+
+	// Get times from single user from single competition, utilise XLSX cache
 	if(req.query.competition && req.query.name) {
 		const name = req.query.name;
 		parsedResults(req.query.competition, cache.maxAge(300,'d'))
 			.then(settings => settings
+				// Verify setting data
+				.filter(setting => setting.starts && setting.value)
 				.map(setting => {
 					let r = setting.results.find(r => r.name == name)
 					return r && {
@@ -307,7 +310,7 @@ app.get('/api/skaters/schaatsen/:licenseKey', function(req, res) {
 		return;
 	}
 	
-	// List of competitions
+	// Get list of competitions
 	var myCompetitions = Obs.startAsync(competitionsPromise)
 		.flatMap(l => l)
 		.where(comp => moment(comp.ends).isBefore())

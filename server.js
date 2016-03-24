@@ -4,6 +4,8 @@ require('newrelic');
 var express = require('express');
 var app = express();
 var q = require('q');
+var rx = require('rx');
+var moment = require('moment');
 // Our lib:
 var examples = require('./examples');
 var handle = require('./convert').handle;
@@ -30,8 +32,9 @@ var ostaTimesPattern = "http://www.osta.nl/?pid=:pid&Seizoen=ALL&Afstand=&perAfs
 var ostaRitPattern = "http://www.osta.nl/rit.php?ID=:rid"
 var settingsPattern = base+"competitions/:id/distancecombinations"
 
-var competitionsPromise = () => fetch(base+"competitions", { dataType: 'json', cache: { key: "competitions", postfix: '.json', expired: cache.maxAge(5,'m') }});
-var competitionPromise = (id) => fetch(base+"competitions/:id".replace(":id", id), { dataType: 'json', cache: { key: "competition:"+id, postfix: '.api.json', expired: cache.maxAge(5,'m') } });
+var competitionsPromise = () => fetch(base+"competitions", { dataType: 'json', cache: { key: "competitions", postfix: '.json', expired: cache.maxAge(10,'d') }});
+var competitionPromise = (id) => fetch(base+"competitions/:id".replace(":id", id), { dataType: 'json', cache: { key: "competition:"+id, postfix: '.api.json', expired: cache.maxAge(60,'d') } });
+var participantsPromise = (id) => fetch(base+"competitions/:id/competitors".replace(":id", id), { dataType: 'json', cache: { key: "competitors:"+id, postfix: '.competitors.json', expired: cache.maxAge(60,'d') }});
 
 function mergeSettingsWithResults(excel, settings) {
 	let distances = [].concat.apply([], settings.map(s => s.distances))
@@ -48,7 +51,7 @@ function mergeSettingsWithResults(excel, settings) {
 }
 
 function onError(e) {
-	let stack = e.stack.replace(/\n/g, "\n<br>").replace(/\s/g, "&nbsp;").replace(/\t/g, "&nbsp;&nbsp;&nbsp;&nbsp;");
+	let stack = e.stack && e.stack.replace(/\n/g, "\n<br>").replace(/\s/g, "&nbsp;").replace(/\t/g, "&nbsp;&nbsp;&nbsp;&nbsp;") || e;
 	this.set('Content-Type', 'text/html')
 	this.status(500).send(stack);
 }
@@ -83,10 +86,8 @@ app.delete('/api/competitions/:id', function (req, res) {
 		.fail(onError.bind(res));
 });
 
-// Resulting times from a competition
-app.get('/api/competitions/:id/result', function (req, res) {
-	const id = req.params.id;
-	cache("results:"+id, { postfix: '.json', expired: cache.maxAge(5,'m') }, () => {
+function parsedResults(id) {
+	return cache("results:"+id, { postfix: '.json', expired: cache.maxAge(5,'m') }, () => {
 		let excel = httpUtils
 			// Fetch XLSX
 			.fetch(excelPattern.replace(":id", id), { dataType: 'binary', cache: { encoding: 'binary', key: 'xlsx:'+id, postfix: '.xlsx'  } })
@@ -104,7 +105,14 @@ app.get('/api/competitions/:id/result', function (req, res) {
 			// Prepare for json file storage
 			.then(data => new Buffer(JSON.stringify(data), 'utf8'));
 	})
-	.then(times => res.json(JSON.parse(times)))
+	.then(data => JSON.parse(data))
+}
+
+// Resulting times from a competition
+app.get('/api/competitions/:id/result', function (req, res) {
+	const id = req.params.id;
+	parsedResults(id)
+	.then(times => res.json(times))
 	.fail(onError.bind(res));
 });
 
@@ -136,10 +144,37 @@ app.get('/api/skaters/find', function (req, res){
 	 	.then(ssr.parseSearch)
 		.then(list => q.all(list.map(addProfileDetails)));
 
-	q.all([p_osta, p_ssr])
+	const p_schaatsen = Obs.startAsync(competitionsPromise)
+		.flatMap(l => l)
+		.where(comp => moment(comp.ends).isBefore())
+		.filter(comp => comp.discipline == "SpeedSkating.LongTrack")
+		.flatMap(comp => looseCompetitorsPromise(comp.id)
+			.filter(pt => pt.competitor.typeName == 'PersonCompetitor')
+			.filter(pt => pt.competitor.fullName == name)
+			.take(1)
+			.map(pt => ({
+				type: "schaatsen",
+				code: pt.competitor.licenseKey,
+				name: pt.competitor.fullName,
+				categories: [{ 
+					category: pt.competitor.category,
+					season: seasonFromCompetition(comp)
+				}],
+				club: pt.competitor.clubFullName,
+			}))
+		)
+		.distinct(t => t.code)
+		.toArray()
+		.toPromise();
+
+	q.all([p_osta, p_ssr, p_schaatsen])
  	  .then(result => res.json([].concat.apply([], result)))
 	  .fail(onError.bind(res));
 });
+
+function seasonFromCompetition(comp) {
+	return moment(comp.starts).add(-6, 'month').year()
+}
 
 // Query skate result times from Osta
 app.get('/api/skaters/osta/:pid', function (req, res){
@@ -242,6 +277,56 @@ app.get('/api/skaters/ssr/:sid', function (req, res){
 
 });
 
+app.get('/api/skaters/schaatsen/:licenseKey', function(req, res) {
+	const key = req.params.licenseKey;
+	
+	if(req.query.competition && req.query.name) {
+		const name = req.query.name;
+		parsedResults(req.query.competition)
+			.then(settings => settings
+				.map(setting => {
+					let r = setting.results.find(r => r.name == name)
+					return r && {
+						date: moment(setting.starts).format('YYYY-MM-DD'),
+						distance: setting.value,
+						name: r.name,
+						time: r.times.slice(-1)[0][1],
+						laps: r.times.map((t, index) => ({
+							distance: parseInt(t[0]),
+							time: t[1],
+							lap_time: index != 0 ? t[2] : undefined
+						}))
+					}
+				})
+				.filter(t => t))
+			.then(times => res.json({
+				times: times,
+				more: []
+			}))
+			.fail(onError.bind(res))
+		return;
+	}
+	
+	// List of competitions
+	var myCompetitions = Obs.startAsync(competitionsPromise)
+		.flatMap(l => l)
+		.where(comp => moment(comp.ends).isBefore())
+		.filter(comp => comp.discipline == "SpeedSkating.LongTrack")
+		.flatMap(comp => looseCompetitorsPromise(comp.id)
+			.filter(pt => pt.competitor.typeName == 'PersonCompetitor')
+			.filter(pt => pt.competitor.licenseKey == key)
+			.take(1)
+			.map(pt => req.url + "?competition=" + comp.id + "&name=" + encodeURIComponent(pt.competitor.fullName))
+		)
+		.toArray()
+		.subscribe(
+			list => res.json({ more: list, times: [] }), 
+			onError.bind(res)
+		);
+	
+});
+
+
 app.use('/', express.static(__dirname + '/web'));
 
 var server = app.listen(3000, function () {
@@ -257,3 +342,10 @@ function simplifyCompetition(comp){
 		.forEach(key => delete comp[key]);
 	return comp;
 }
+
+const Obs = rx.Observable;
+
+var looseCompetitorsPromise = (id) => Obs.just(id)
+  .flatMap(participantsPromise)
+  .flatMap(l => l)
+  .flatMap(s => s.competitors)

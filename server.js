@@ -351,7 +351,38 @@ function simplifyCompetition(comp){
 
 const Obs = rx.Observable;
 
+// in use:
 var looseCompetitorsPromise = (id) => Obs.just(id)
   .flatMap(participantsPromise)
   .flatMap(l => l)
   .flatMap(s => s.competitors)
+	
+var allCompetitors = Obs.startAsync(competitionsPromise)
+	.flatMap(l => l)
+	// delay until competition is over
+	.flatMap(comp => {
+		let end = moment(comp.ends)
+		return end.isBefore() ? Obs.just(comp) : Obs.empty();//Obs.timer(moment(comp.ends).toDate()).map(_ => comp)
+	})
+	.flatMap(comp => looseCompetitorsPromise(comp.id).map(pt => {
+		pt.competitionId = comp.id;
+		return pt;
+	}))
+	.where(pt => pt.competitor.typeName == 'PersonCompetitor')
+	.groupBy(pt => pt.competitor.fullName.toLowerCase())
+	.where(g => g.key == "herman banken" || g.key == "erik jansen");
+	
+function splitPerPerson(obs){
+	return obs
+		.distinct(v => v.competitor.licenseKey)
+		.scan((list, v) => list.push(v.competitor.licenseKey+"-"+v.competitor.licenseDiscipline) && list, [obs.key])
+		.last()
+}
+	
+allCompetitors = allCompetitors.flatMap(splitPerPerson)
+
+// module.exports = () => allCompetitors
+// 	.subscribe(n => {
+// 		console.log(n)
+// //		n.map((v, i) => i+1).subscribe(c => console.log(n.key, c))
+// 	});

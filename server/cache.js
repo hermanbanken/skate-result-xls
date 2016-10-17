@@ -13,7 +13,7 @@ function cache(key, options, get, callback){
 	var encoding = options.encoding || 'utf8';
 
 	var hash = crypto.createHash('md5').update(key).digest('hex');
-	var file = 'cache/'+(options.prefix || "")+hash+(options.postfix || "");
+	var file = __dirname + '/../cache/'+(options.prefix || "")+hash+(options.postfix || "");
 
 	function writeBack(value) {
 		return q
@@ -71,7 +71,7 @@ cache.delete = function(key, options) {
 	if(!options) options = {};
 	
 	var hash = crypto.createHash('md5').update(key).digest('hex');
-	var file = 'cache/'+(options.prefix || "")+hash+(options.postfix || "");
+	var file = __dirname + '/../cache/'+(options.prefix || "")+hash+(options.postfix || "");
 
 	return q.nfcall(fs.unlink, file);
 }

@@ -1,6 +1,6 @@
 'use strict';
 
-var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj; };
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
 
 var q = require('q');
 var https = require('https');
@@ -83,7 +83,22 @@ function jsonApiPromise(url, cacheKey, cacheOptions) {
 	});
 }
 
+function _onError(args, e) {
+	console.error("Exception in HTTP.fetch");
+	console.error(e, e.stack.split("\n"));
+	console.error("Params: " + JSON.stringify(args));
+	throw e;
+}
+
 function fetch(url, options) {
+	try {
+		return _fetch.apply(this, arguments).catch(_onError.bind(null, arguments));
+	} catch (e) {
+		_onError(arguments, e);
+	}
+}
+
+function _fetch(url, options) {
 	if ((typeof url === 'undefined' ? 'undefined' : _typeof(url)) == 'object') {
 		options = url;
 	}
@@ -154,7 +169,11 @@ function fetch(url, options) {
 
 	// Parse json
 	if (options.dataType == 'json') promise = promise.then(function (data) {
-		return JSON.parse(data);
+		try {
+			return JSON.parse(data);
+		} catch (e) {
+			throw new Error("No valid JSON:\n" + data);
+		}
 	});
 
 	return promise;

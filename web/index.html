@@ -7,10 +7,10 @@
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.5/css/bootstrap.css" type="text/css" />
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/plottable.js/2.0.0/plottable.css" type="text/css" />
 	<link rel="stylesheet" href="app.css" type="text/css" />
-	<script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.10.6/moment.min.js"></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.5/js/bootstrap.min.js"></script>
+	<script src="//code.jquery.com/jquery-2.1.4.min.js"></script>
+	<script src="//cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
+	<script src="//cdnjs.cloudflare.com/ajax/libs/moment.js/2.10.6/moment.min.js"></script>
+	<script src="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.5/js/bootstrap.min.js"></script>
 </head>
 
 <body>
@@ -22,35 +22,19 @@
 					<span class="icon-bar"></span>
 					<span class="icon-bar"></span>
 				</button>
-				<a href="/" ui-sref="competitions.list" class="navbar-brand">SCHAATSEN.NL</a>
+				<a href="/" ui-sref="root" class="navbar-brand">SCHAATSEN.NL</a>
 			</div>
 			<div class="navbar-collapse collapse">
 				<ul class="navbar-right nav navbar-nav">
 					<li><a href="https://github.com/hermanbanken/skate-result-xls"><i class="glyphicon glyphicon-console"></i> Github</a></li>
 				</ul>
-				<div class="form-inline navbar-form navbar-right">
-					<div class="form-group form-group-sm">
-						<select class="form-control" name="discipline" ng-model="filter.discipline" ng-change="doFilter()">
-							<option value="" ng-selected="!filter.discipline">(alle disciplines)</option>
-							<option value="SpeedSkating.Inline">Inline-skaten</option>
-							<option value="SpeedSkating.LongTrack">Langebaan</option>
-							<option value="SpeedSkating.Marathon">Marathon</option>
-							<option value="SpeedSkating.ShortTrack">Shorttrack</option>
-						</select>
-					</div>
-					<div class="form-group form-group-sm">
-						<select class="form-control" name="venue" ng-model="filter.venue" ng-change="doFilter()" ng-disabled="filter.discipline == ''">
-							<option value="" ng-selected="!filter.venue">(alle banen)</option>
-							<option
-								ng-selected="filter.venue == v.code"
-								ng-repeat="v in venues | filter:{discipline: filter.discipline} | orderBy:['address.city','name']" 
-								value="{{v.code}}">{{v.address.city}} ({{v.name}})</option>
-						</select>
-					</div>
-				</div>
 				<ul class="nav navbar-nav">
-					<li><a href="/" ui-sref="competitions.list">WEDSTRIJDEN</a></li>
-					<li><a href="/" ui-sref="skaters">SCHAATSERS</a></li>
+					<li><a href="/" ng-class="{ active: $state.includes('root') }" ui-sref="root">BANEN</a></li>
+					<li><a href="/" 
+						ng-show="$state.includes('competitions')" 
+						ng-class="{ active: $state.includes('competitions') }"
+						ui-sref="competitions.list">WEDSTRIJDEN</a></li>
+					<li><a href="/" ng-class="{ active: $state.includes('skaters') }" ui-sref="skaters">SCHAATSERS</a></li>
 				</ul>
 			</div>
 		</div>

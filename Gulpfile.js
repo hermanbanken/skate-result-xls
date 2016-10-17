@@ -22,6 +22,7 @@ gulp.task("build-module", function() {
 		"Cell.js",
 		"stdin.js", 
 		"server.js",
+		"rx-server.js",
 		"examples.js",
 		"module-api.js",
 		])
@@ -37,6 +38,7 @@ gulp.task("build-module", function() {
 
 gulp.task("watch", function(cb){
 	watch('web/*.js', ['build']).on('end', cb);
+	watch('*.js', ['build-module']).on('end', cb);
 });
 
 gulp.task("server", shell.task([
@@ -44,5 +46,5 @@ gulp.task("server", shell.task([
 ]));
 
 gulp.task("default", ['build']);
-gulp.task('dev', ['build', 'server', 'watch']);
+gulp.task('dev', ['build', 'build-module', 'server', 'watch']);
 

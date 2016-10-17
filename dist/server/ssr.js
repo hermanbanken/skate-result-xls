@@ -161,7 +161,7 @@ function parseRanks(data) {
 	var meta = re.rank.meta.exec(data);
 	var tournament_day_date = null;
 	var tournament_distance = null;
-	var date = undefined;
+	var date = void 0;
 
 	if (meta && meta[2].indexOf("-") > 0) {
 		// Multi day

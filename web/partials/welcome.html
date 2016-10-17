@@ -1,0 +1,50 @@
+<div class="container-fluid body-content">
+	<div class="row">
+		<div class="col-sm-12" id="master">
+			<h1>Banen</h1>
+            <div>
+                <!-- Nav tabs -->
+                <ul class="nav nav-tabs" role="tablist">
+                    <li role="presentation" ng-repeat="discipline in meta.disciplines">
+                        <a href="{{ '#' + discipline.split('.')[1] }}" aria-controls="{{ discipline }}" role="tab" data-toggle="tab">
+                            {{ disciplineTranslations[discipline] }}
+                        </a>
+                    </li>
+                </ul>
+                <!-- Tab panes -->
+                <div class="tab-content">
+                    <div role="tabpanel" class="tab-pane" id="{{ discipline.split('.')[1] }}" ng-repeat="discipline in meta.disciplines">
+                    <table class="table table-ellipsis table-condensed table-hover table-striped">
+                        <tr>
+                            <th class='ellipsis'>Baan</th>
+                            <th class='ellipsis'>Stad</th>
+                            <th class='ellipsis'>Code</th>
+                        </tr>
+                        <tr ng-repeat="venue in meta.venues | orderBy:['name'] | filter:{discipline: discipline}">
+                            <td class='ellipsis'>
+                                <a ui-sref="competitions.list({venue: venue.code, discipline: discipline})">{{ venue.name }}</a>
+                            </td>
+                            <td class='ellipsis'>{{ venue.address.city }}</td>
+                            <td class='ellipsis'>{{ venue.code }}</td>
+                            <!--<td>{{ c.starts | date:'EEE dd-MM-yyyy HH:mm' }}</td>
+                            <td><a href="https://inschrijven.schaatsen.nl/#/wedstrijd/{{ c.id }}/informatie"><i class='glyphicon glyphicon-info-sign' /></a></td>
+                            <td><a href="http://emandovantage.com/api/competitions/{{ c.id }}/reports/Results/Pdf"><i class='glyphicon glyphicon-file' /></a></td>-->
+                        </tr>
+                    </table>
+                    </div>
+                    <div role="tabpanel" class="tab-pane active" id="otherwise">
+                        <table class="table table-ellipsis table-condensed table-hover table-striped">
+                        <tr>
+                            <th class='ellipsis'>Baan</th>
+                            <th class='ellipsis'>Stad</th>
+                            <th class='ellipsis'>Code</th>
+                        </tr>
+                        <tr><td colspan=3 class='ellipsis'>Selecteer eerst een discipline.</td></tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+		</div>
+		<div class="col-sm-0" id="detail"></div>
+	</div>
+</div>

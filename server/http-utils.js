@@ -77,7 +77,7 @@ function jsonApiPromise(url, cacheKey, cacheOptions) {
 
 function _onError(args, e) {
 	console.error("Exception in HTTP.fetch");
-	console.error(e);
+	console.error(e, e.stack.split("\n"));
 	console.error("Params: "+JSON.stringify(args));
 	throw e;
 }
@@ -168,7 +168,13 @@ function _fetch(url, options) {
 	
 	// Parse json
 	if(options.dataType == 'json')
-		promise = promise.then(data => JSON.parse(data));
+		promise = promise.then(data => {
+			try {
+				return JSON.parse(data)
+			} catch(e) {
+				throw new Error("No valid JSON:\n"+data);
+			}
+		});
 		
 	return promise;
 }

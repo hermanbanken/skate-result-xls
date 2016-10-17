@@ -3,7 +3,6 @@
 		<div class="col-sm-12" id="master">
 			<h1>Wedstrijden</h1>
 			<p><label><input type='checkbox' ng-model="filter.showOld" ng-click="doFilter()" /> toon alle wedstrijden</label></p>
-			<div ng-show="!filter.discipline || !filter.venue" class="alert alert-info">Zie je geen wedstrijden? Selecteer eerst een discipline en een baan in het menu.</div>
 			<div class='group' ng-repeat="group in competitions | orderBy:['-state']">
 				<h3>
 					{{ states[group.state] }}
@@ -24,7 +23,7 @@
 							</ng-pluralize>
 						</a></td>
 					</tr>
-					<tr ng-repeat="c in group.value | orderBy:['starts'] | filter:{discipline: filter.discipline, venue: { code: filter.venue }} | hideOld:filter">
+					<tr ng-repeat="c in group.value | orderBy:['starts'] | hideOld:filter">
 						<td class='ellipsis'><a ui-sref="competitions.detail({id: c.id})">{{ c.name }}</a></td>
 						<td>{{ c.starts | date:'EEE dd-MM-yyyy HH:mm' }}</td>
 						<td><a href="https://inschrijven.schaatsen.nl/#/wedstrijd/{{ c.id }}/informatie"><i class='glyphicon glyphicon-info-sign' /></a></td>

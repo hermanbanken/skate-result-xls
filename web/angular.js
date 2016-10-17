@@ -1,6 +1,9 @@
 const OLD_MINDAYS = -9;
 
 angular.module('skateApp.services', [])
+.factory('Meta', ['$resource', function($resource) {
+	return $resource('/api/meta', null);
+}])
 .factory('Competition', ['$resource', function($resource) {
 	return $resource('/api/competitions/:id', null);
 }])
@@ -55,19 +58,47 @@ app.config(function($locationProvider, $stateProvider, $urlRouterProvider, $reso
 	// Routes
 	var root = $stateProvider;
 	
-	root.state('competitions', {
-		abstract: true,
-		url: "/competitions",
-		template: "<ui-view />",
+	root.state("root", {
+		url: "/",
+		templateUrl: "partials/welcome.html",
 		resolve: {
-			competitions: function(Competition){
-				return Competition.query().$promise;
+			meta: function (Meta) {
+				return Meta.get().$promise;
 			}
 		},
-		onEnter: function($rootScope, competitions){
+		onEnter: function($rootScope, $stateParams, meta) {
+			localStorage.setItem("filter", "{}");
+			$rootScope.filter = {};
+			$rootScope.venues = _.uniq(_.pluck(meta.venues, "venue"), "code");
+			$rootScope.disciplineTranslations = {
+				"SpeedSkating.Inline": "Inline-skaten",
+				"SpeedSkating.LongTrack": "Langebaan",
+				"SpeedSkating.Marathon": "Marathon",
+				"SpeedSkating.ShortTrack": "Shorttrack",
+			};
+			$rootScope.meta = meta;
+    		$rootScope.$stateParams = $stateParams;
+		}
+	})
+
+	root.state('competitions', {
+		abstract: true,
+		url: "/competitions/{discipline:[a-zA-Z]+.[a-zA-Z]+}/{venue:[A-Z]{3}}",
+		template: "<ui-view />",
+		resolve: {
+			meta: function (Meta) {
+				return Meta.get().$promise;
+			},
+			competitions: function(Competition, $stateParams){
+				return Competition.query({ discipline: $stateParams.discipline, venue: $stateParams.venue }).$promise;
+			},
+		},
+		onEnter: function($rootScope, competitions, meta, $stateParams){
 			// Populate filter lists
+			$rootScope.meta = meta;
+			localStorage.setItem("filter", JSON.stringify($stateParams));
+			$rootScope.filter = $stateParams;
 			$rootScope.states = ["Nog niet bekend", "Voorlopig resultaat", "Resultaat beschikbaar"];
-			$rootScope.venues = _.uniq(_.pluck(competitions, "venue"), "code").filter(function(a){return a;});
 		}
 	})
 	
@@ -91,7 +122,7 @@ app.config(function($locationProvider, $stateProvider, $urlRouterProvider, $reso
 		}
 	});
 
-	$urlRouterProvider.otherwise("/competitions");
+	$urlRouterProvider.otherwise("/");
 
 	// Don't strip trailing slashes from calculated URLs
 	$resourceProvider.defaults.stripTrailingSlashes = false;
@@ -104,12 +135,15 @@ app.run(function($rootScope){
 	$rootScope.$on('$stateChangeSuccess', function(event, toState, toParams, fromState, fromParams){
 		$(".page-loading .modal").modal('hide');
 	});
+	$rootScope.$on('$stateChangeError', function(event, toState, toParams, fromState, fromParams, error){
+		console.log("stateChangeError", arguments);
+		$(".page-loading .modal").modal('hide');
+	});
 });
 
 //$('<div class="progress"><div class="progress-bar progress-bar-striped active" role="progressbar" style="width: 100%"></div></div>')
 	
 app.controller('CompetitionListCtrl', ["$scope", "$rootScope", "$http", "competitions", "$filter", function ($scope, $rootScope, $http, competitions, $filter) {
-	
 	// Group by availability state
 	$scope.competitions = _.map(_.groupBy(competitions, function(c) {
 		if(new Date(c.ends) > new Date())
@@ -123,13 +157,9 @@ app.controller('CompetitionListCtrl', ["$scope", "$rootScope", "$http", "competi
 		$rootScope.filter.showOld = true;
 	}
 	$scope.countOlder = function(cs) {
-		cs = cs
-			.filter(c => c.discipline == $scope.filter.discipline)
-			.filter(c => c.venue && c.venue.code == $scope.filter.venue)
-		
 		return cs.filter(c => moment(c.starts).isBefore(moment().add(OLD_MINDAYS, 'day'))).length;
 	}
-	
+
 }]);
 
 app.controller('CompetitionDetailCtrl', function ($scope, $state, $stateParams, result, competition, skaterService) {

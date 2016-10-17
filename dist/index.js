@@ -11,7 +11,6 @@ if (require.main === module) {
 	if (args.length > 0 && args[0] != "--") {
 		(function () {
 			// Recursively process all files in sequence
-
 			var check = function check(files, callback, prevFiles) {
 				if (files.length == 0) {
 					callback(null, prevFiles);

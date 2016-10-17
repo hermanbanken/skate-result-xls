@@ -4,7 +4,7 @@ require('newrelic');
 var express = require('express');
 var app = express();
 var q = require('q');
-var rx = require('rx');
+var rx = require('rx'), Obs = rx.Observable;
 var moment = require('moment');
 // Our lib:
 var examples = require('./examples');
@@ -20,6 +20,7 @@ var cache = require('./server/cache');
 var compress = require('compression');
 
 app.use(compress());
+require("./rx-server")(app);
 
 // Vars:
 var base = "https://inschrijven.schaatsen.nl/api/";
@@ -60,13 +61,7 @@ function onError(e) {
 }
 
 // List of competitions
-app.get('/api/competitions', function (req, res) {
-	res.type('json');
-	competitionsPromise()
-		.then(l => l.map(simplifyCompetition))
-		.then(l => res.json(l))
-		.fail(onError.bind(res));
-});
+// => handled by Rx-server
 
 // Single competition with more detail
 app.get('/api/competitions/:id', function (req, res) {
@@ -76,7 +71,7 @@ app.get('/api/competitions/:id', function (req, res) {
 	}).fail(onError.bind(res));
 });
 
-app.delete('/api/competitions/:id', function (req, res) {
+app.del('/api/competitions/:id', function (req, res) {
 	var id = req.params.id;
 	console.log("Deleting", id);
 	q
@@ -147,31 +142,31 @@ app.get('/api/skaters/find', function (req, res){
 	 	.then(ssr.parseSearch)
 		.then(list => q.all(list.map(addProfileDetails)));
 
-	const p_schaatsen = Obs.startAsync(competitionsPromise)
-		.flatMap(l => l)
-		.where(comp => moment(comp.ends).isBefore())
-		.filter(comp => comp.discipline == "SpeedSkating.LongTrack")
-		.flatMap(comp => looseCompetitorsPromise(comp.id)
-			.filter(pt => pt.competitor.typeName == 'PersonCompetitor')
-			.filter(pt => pt.competitor.fullName == name)
-			.take(1)
-			.map(pt => ({
-				type: "schaatsen",
-				code: pt.competitor.licenseKey,
-				name: pt.competitor.fullName,
-				categories: [{ 
-					category: pt.competitor.category,
-					season: seasonFromCompetition(comp)
-				}],
-				club: pt.competitor.clubFullName,
-			}))
-		)
-		.distinct(t => t.code)
-		.toArray()
-		.toPromise();
+	// const p_schaatsen = Obs.startAsync(competitionsPromise)
+	// 	.flatMap(l => l)
+	// 	.where(comp => moment(comp.ends).isBefore())
+	// 	.filter(comp => comp.discipline == "SpeedSkating.LongTrack")
+	// 	.flatMap(comp => looseCompetitorsPromise(comp.id)
+	// 		.filter(pt => pt.competitor.typeName == 'PersonCompetitor')
+	// 		.filter(pt => pt.competitor.fullName == name)
+	// 		.take(1)
+	// 		.map(pt => ({
+	// 			type: "schaatsen",
+	// 			code: pt.competitor.licenseKey,
+	// 			name: pt.competitor.fullName,
+	// 			categories: [{ 
+	// 				category: pt.competitor.category,
+	// 				season: seasonFromCompetition(comp)
+	// 			}],
+	// 			club: pt.competitor.clubFullName,
+	// 		}))
+	// 	)
+	// 	.distinct(t => t.code)
+	// 	.toArray()
+	// 	.toPromise();
 
-	q.all([p_osta, p_ssr, p_schaatsen])
- 	  .then(result => res.json([].concat.apply([], result)))
+	q.all([p_osta, p_ssr, /*p_schaatsen*/])
+ 	  .then(result => res.send(JSON.stringify([].concat.apply([], result))))
 	  .fail(onError.bind(res));
 });
 
@@ -332,7 +327,6 @@ app.get('/api/skaters/schaatsen/:licenseKey', function(req, res) {
 	
 });
 
-
 app.use('/', express.static(__dirname + '/web'));
 
 var server = app.listen(3000, function () {
@@ -349,9 +343,38 @@ function simplifyCompetition(comp){
 	return comp;
 }
 
-const Obs = rx.Observable;
-
+// in use:
 var looseCompetitorsPromise = (id) => Obs.just(id)
   .flatMap(participantsPromise)
   .flatMap(l => l)
   .flatMap(s => s.competitors)
+	
+var allCompetitors = Obs.startAsync(competitionsPromise)
+	.flatMap(l => l)
+	// delay until competition is over
+	.flatMap(comp => {
+		let end = moment(comp.ends)
+		return end.isBefore() ? Obs.just(comp) : Obs.empty();//Obs.timer(moment(comp.ends).toDate()).map(_ => comp)
+	})
+	.flatMap(comp => looseCompetitorsPromise(comp.id).map(pt => {
+		pt.competitionId = comp.id;
+		return pt;
+	}))
+	.where(pt => pt.competitor.typeName == 'PersonCompetitor')
+	.groupBy(pt => pt.competitor.fullName.toLowerCase())
+	.where(g => g.key == "herman banken" || g.key == "erik jansen");
+	
+function splitPerPerson(obs){
+	return obs
+		.distinct(v => v.competitor.licenseKey)
+		.scan((list, v) => list.push(v.competitor.licenseKey+"-"+v.competitor.licenseDiscipline) && list, [obs.key])
+		.last()
+}
+	
+allCompetitors = allCompetitors.flatMap(splitPerPerson)
+
+// module.exports = () => allCompetitors
+// 	.subscribe(n => {
+// 		console.log(n)
+// //		n.map((v, i) => i+1).subscribe(c => console.log(n.key, c))
+// 	});
